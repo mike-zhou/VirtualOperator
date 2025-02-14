@@ -1,0 +1,42 @@
+@startuml
+
+participant startup_stm32h753bi
+
+
+-> startup_stm32h753bi: Reset_Handler
+activate startup_stm32h753bi
+    startup_stm32h753bi -> system_stm32h7xx: ExitRun0Mode
+    startup_stm32h753bi -> system_stm32h7xx: SystemInit
+    startup_stm32h753bi -> startup_stm32h753bi: LoopCopyDataInit
+    activate startup_stm32h753bi
+        startup_stm32h753bi -> startup_stm32h753bi: CopyDataInit
+        startup_stm32h753bi -> startup_stm32h753bi: LoopFillZerobss
+        activate startup_stm32h753bi
+            startup_stm32h753bi -> startup_stm32h753bi: FillZerobss
+            startup_stm32h753bi -> main.c : main
+        deactivate startup_stm32h753bi
+    deactivate startup_stm32h753bi
+deactivate startup_stm32h753bi
+
+
+note over startup_stm32h753bi: USART1 interrupt
+-> startup_stm32h753bi: g_pfnVectors
+activate startup_stm32h753bi
+    startup_stm32h753bi -> stm32h7xx_it_c: USART1_IRQHandler
+    activate stm32h7xx_it_c
+        stm32h7xx_it_c -> stm32h7xx_hal_uart_c: HAL_UART_IRQHandler
+    deactivate stm32h7xx_it_c
+deactivate startup_stm32h753bi
+
+
+
+
+
+
+
+
+
+
+
+
+@enduml
