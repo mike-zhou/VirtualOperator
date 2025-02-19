@@ -23,3 +23,21 @@ bool test_UART_output(UART_HandleTypeDef *huart)
 	else
 		return false;
 }
+
+bool test_UART_echo(UART_HandleTypeDef *huart)
+{
+	static int counter = 0;
+	char content[80];
+	HAL_StatusTypeDef status;
+
+	status = HAL_UART_Receive(huart, content, 1, HAL_MAX_DELAY);
+	if(status != HAL_OK)
+		return false;
+
+	status = HAL_UART_Transmit(huart, content, 1, HAL_MAX_DELAY);
+
+	if(status == HAL_OK)
+		return true;
+	else
+		return false;
+}
