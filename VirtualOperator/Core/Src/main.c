@@ -156,7 +156,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  test_UART_echo(&huart1);
+	  test_UART_output_interrupt(&huart1);
   }
   /* USER CODE END 3 */
 }
