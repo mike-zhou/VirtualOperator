@@ -13,6 +13,5 @@
 
 bool test_UART_output(UART_HandleTypeDef *huart);
 bool test_UART_echo(UART_HandleTypeDef *huart);
-bool test_UART_output_interrupt(UART_HandleTypeDef *huart);
 
 #endif /* SRC_APP_APP_H_ */

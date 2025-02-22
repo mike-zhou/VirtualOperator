@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "app/app.h"
+#include "app/usart1.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -151,12 +151,34 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  int counter = 0;
+  int print_counter = 0;
+  print_log("This is usart1 echo in interrupt, and periodically test print_xxx functions\r\n");
+
   while (1)
   {
+	 poll_usart1();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  test_UART_output_interrupt(&huart1);
+	 uint8_t c;
+	 if(poll_char(&c))
+	 {
+		 print_complete_log("You inputed '%c'\r\n", c);
+	 }
+	 counter++;
+	 if(counter == 0x100000)
+	 {
+		 print_counter++;
+		 counter = 0;
+		 print_complete_log("print_complete_log '%s', %d\r\n", "hello world", print_counter);
+		 print_uint8_hex(0xab); print_string("\r\n");
+		 print_uint16_hex(0xabcd); print_string("\r\n");
+		 print_uint32_hex(0x89abcdef); print_string("\r\n");
+		 print_char('a'); print_string("\r\n");
+		 print_log("print_log \r\n---------------------\r\n");
+	 }
   }
   /* USER CODE END 3 */
 }
@@ -992,7 +1014,10 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-
+  if (prepare_uart1() == false)
+  {
+    Error_Handler();
+  }
   /* USER CODE END USART1_Init 2 */
 
 }

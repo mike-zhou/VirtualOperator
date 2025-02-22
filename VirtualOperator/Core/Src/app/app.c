@@ -43,35 +43,5 @@ bool test_UART_echo(UART_HandleTypeDef *huart)
 
 
 
-static bool sending_done = true;
-static bool receiving_done = true;
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	receiving_done = true;
-}
 
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-	sending_done = true;
-}
-
-
-bool test_UART_output_interrupt(UART_HandleTypeDef *huart)
-{
-	static int counter = 0;
-	static char content[80];
-	HAL_StatusTypeDef status;
-
-	if(!sending_done)
-		return;
-
-	sprintf(content, "Hello world! %d\r\n", counter++);
-	status = HAL_UART_Transmit_IT(huart, content, strlen(content));
-
-	if(status == HAL_OK)
-		return true;
-	else
-		return false;
-}
