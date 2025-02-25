@@ -20,7 +20,6 @@ typedef struct {
     size_t   mask;
     size_t   head;
     size_t   tail;
-    bool     full;
 } CircularBuffer;
 
 /*

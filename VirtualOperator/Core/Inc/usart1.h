@@ -5,8 +5,8 @@
  *      Author: Mike
  */
 
-#ifndef SRC_APP_USART1_H_
-#define SRC_APP_USART1_H_
+#ifndef INC_USART1_H_
+#define INC_USART1_H_
 
 #include <stdbool.h>
 #include "stm32h7xx_hal.h"
@@ -25,6 +25,6 @@ void print_log(const char *format, ...);
 // return false in case that truncation happens or no enough empty space in transfer buffer.
 bool print_complete_log(const char *format, ...);
 
-bool poll_char(unsigned char * pBuf);
+bool get_uart_char(unsigned char * pBuf);
 
-#endif /* SRC_APP_USART1_H_ */
+#endif /* INC_USART1_H_ */

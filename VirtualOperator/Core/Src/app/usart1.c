@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <usart1.h>
 
-#include "usart1.h"
 #include "circular_buffer.h"
 
 #define SENDING_BUFFER_LENGTH 	0x10000
@@ -269,7 +269,7 @@ bool print_complete_log(const char *format, ...)
 }
 
 
-bool poll_char(unsigned char * pBuf)
+bool get_uart_char(unsigned char * pBuf)
 {
 	return cbuf_get(&_cbuffer_receiving, pBuf);
 }

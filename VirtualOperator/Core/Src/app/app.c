@@ -4,8 +4,8 @@
  *  Created on: Feb 18, 2025
  *      Author: Mike
  */
+#include <app.h>
 #include <string.h>
-#include "app.h"
 
 
 bool test_UART_output(UART_HandleTypeDef *huart)

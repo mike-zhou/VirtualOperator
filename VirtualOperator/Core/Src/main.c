@@ -17,12 +17,13 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include <usart1.h>
+#include <usb_fs.h>
 #include "main.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "app/usart1.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -115,7 +116,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  prepare_uart1();
+  init_usb_fs();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -150,33 +152,34 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int counter = 0;
-  int print_counter = 0;
-  print_log("This is usart1 echo in interrupt, and periodically test print_xxx functions\r\n");
+  print_log("This is USB FS echo\r\n");
+  uint8_t cache[256];
+  bool usb_send = true;
 
   while (1)
   {
 	 poll_usart1();
+	 if(usb_send)
+	 {
+		 poll_usb_fs();
+	 }
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 uint8_t c;
-	 if(poll_char(&c))
+
+	 uint32_t byte_count;
+	 for(byte_count = 0; byte_count < sizeof(cache); byte_count++)
 	 {
-		 print_complete_log("You inputed '%c'\r\n", c);
+		 if(!get_usb_fs_byte(cache + byte_count))
+			 break;
 	 }
-	 counter++;
-	 if(counter == 0x100000)
+	 if(byte_count > 0)
 	 {
-		 print_counter++;
-		 counter = 0;
-		 print_complete_log("print_complete_log '%s', %d\r\n", "hello world", print_counter);
-		 print_uint8_hex(0xab); print_string("\r\n");
-		 print_uint16_hex(0xabcd); print_string("\r\n");
-		 print_uint32_hex(0x89abcdef); print_string("\r\n");
-		 print_char('a'); print_string("\r\n");
-		 print_log("print_log \r\n---------------------\r\n");
+		 if(send_usb_fs_bytes(cache, byte_count) == false)
+		 {
+			 //print_log("Failed to echo %d bytes to host\r\n", byte_count);
+		 }
 	 }
   }
   /* USER CODE END 3 */
@@ -1013,10 +1016,6 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART1_Init 2 */
-  if (prepare_uart1() == false)
-  {
-    Error_Handler();
-  }
   /* USER CODE END USART1_Init 2 */
 
 }
