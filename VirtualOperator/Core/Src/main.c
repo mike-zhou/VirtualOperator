@@ -17,13 +17,13 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <usart1.h>
-#include <usb_fs.h>
 #include "main.h"
 #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "usart1.h"
+#include "usb_fs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -147,26 +147,27 @@ int main(void)
   MX_USB_OTG_HS_PCD_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   print_log("This is USB FS echo\r\n");
   uint8_t cache[256];
-  bool usb_send = true;
+  bool test_run = false;
 
   while (1)
   {
 	 poll_usart1();
-	 if(usb_send)
-	 {
-		 poll_usb_fs();
-	 }
+	 poll_usb_fs();
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	 if(!test_run)
+	 {
+		  test_gpio();
+		  test_run = true;
+	 }
 
 	 uint32_t byte_count;
 	 for(byte_count = 0; byte_count < sizeof(cache); byte_count++)
@@ -1113,9 +1114,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PE2 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  /*Configure GPIO pins : PE2 PE7 PE8 PE10
+                           PE12 PE13 PE14 PE15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_10
+                          |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
@@ -1211,14 +1214,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PE7 PE8 PE10 PE12
-                           PE13 PE14 PE15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_10|GPIO_PIN_12
-                          |GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PJ5 PJ7 PJ9 PJ10
                            PJ11 PJ14 */
