@@ -153,7 +153,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   print_log("This is USB FS echo\r\n");
   uint8_t cache[256];
-  bool test_run = false;
 
   while (1)
   {
@@ -163,12 +162,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 if(!test_run)
-	 {
-		  test_gpio();
-		  test_run = true;
-	 }
-
 	 uint32_t byte_count;
 	 for(byte_count = 0; byte_count < sizeof(cache); byte_count++)
 	 {
