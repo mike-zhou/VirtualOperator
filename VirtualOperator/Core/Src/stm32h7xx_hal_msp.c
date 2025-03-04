@@ -112,19 +112,19 @@ void HAL_LPTIM_MspInit(LPTIM_HandleTypeDef* hlptim)
     PH2     ------> LPTIM1_IN2
     PG12     ------> LPTIM1_IN1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_2;
+    GPIO_InitStruct.Pin = EA_1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF1_LPTIM1;
-    HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+    HAL_GPIO_Init(EA_1_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_12;
+    GPIO_InitStruct.Pin = EB_1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF1_LPTIM1;
-    HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
+    HAL_GPIO_Init(EB_1_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN LPTIM1_MspInit 1 */
 
@@ -153,7 +153,7 @@ void HAL_LPTIM_MspInit(LPTIM_HandleTypeDef* hlptim)
     PD11     ------> LPTIM2_IN2
     PD12     ------> LPTIM2_IN1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_11|GPIO_PIN_12;
+    GPIO_InitStruct.Pin = EB_4_Pin|EA_4_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -187,9 +187,9 @@ void HAL_LPTIM_MspDeInit(LPTIM_HandleTypeDef* hlptim)
     PH2     ------> LPTIM1_IN2
     PG12     ------> LPTIM1_IN1
     */
-    HAL_GPIO_DeInit(GPIOH, GPIO_PIN_2);
+    HAL_GPIO_DeInit(EA_1_GPIO_Port, EA_1_Pin);
 
-    HAL_GPIO_DeInit(GPIOG, GPIO_PIN_12);
+    HAL_GPIO_DeInit(EB_1_GPIO_Port, EB_1_Pin);
 
   /* USER CODE BEGIN LPTIM1_MspDeInit 1 */
 
@@ -207,7 +207,7 @@ void HAL_LPTIM_MspDeInit(LPTIM_HandleTypeDef* hlptim)
     PD11     ------> LPTIM2_IN2
     PD12     ------> LPTIM2_IN1
     */
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_11|GPIO_PIN_12);
+    HAL_GPIO_DeInit(GPIOD, EB_4_Pin|EA_4_Pin);
 
   /* USER CODE BEGIN LPTIM2_MspDeInit 1 */
 
@@ -238,7 +238,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PE9     ------> TIM1_CH1
     PE11     ------> TIM1_CH2
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_11;
+    GPIO_InitStruct.Pin = EA_2_Pin|EB_2_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -262,7 +262,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PA0     ------> TIM2_CH1
     PA1     ------> TIM2_CH2
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+    GPIO_InitStruct.Pin = EA_0_Pin|EB_0_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -286,7 +286,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PC6     ------> TIM3_CH1
     PC7     ------> TIM3_CH2
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
+    GPIO_InitStruct.Pin = EA_7_Pin|EB_7_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -311,19 +311,19 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PD13     ------> TIM4_CH2
     PB6     ------> TIM4_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_13;
+    GPIO_InitStruct.Pin = EB_5_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
-    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    HAL_GPIO_Init(EB_5_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    GPIO_InitStruct.Pin = EA_5_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(EA_5_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM4_MspInit 1 */
 
@@ -342,7 +342,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PH10     ------> TIM5_CH1
     PH11     ------> TIM5_CH2
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
+    GPIO_InitStruct.Pin = EA_3_Pin|EB_3_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -366,7 +366,7 @@ void HAL_TIM_Encoder_MspInit(TIM_HandleTypeDef* htim_encoder)
     PJ6     ------> TIM8_CH2
     PJ8     ------> TIM8_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_8;
+    GPIO_InitStruct.Pin = EB_6_Pin|EA_6_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -468,14 +468,13 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     __HAL_RCC_GPIOH_CLK_ENABLE();
     /**TIM12 GPIO Configuration
     PH6     ------> TIM12_CH1
-    PH9     ------> TIM12_CH2
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_9;
+    GPIO_InitStruct.Pin = CLK_STP5_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM12;
-    HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP5_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM12_MspPostInit 1 */
 
@@ -491,12 +490,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     /**TIM13 GPIO Configuration
     PA6     ------> TIM13_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    GPIO_InitStruct.Pin = CLK_STP3_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF9_TIM13;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP3_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM13_MspPostInit 1 */
 
@@ -512,12 +511,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     /**TIM14 GPIO Configuration
     PA7     ------> TIM14_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_7;
+    GPIO_InitStruct.Pin = CLK_STP4_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF9_TIM14;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP4_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM14_MspPostInit 1 */
 
@@ -533,12 +532,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     /**TIM15 GPIO Configuration
     PE5     ------> TIM15_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    GPIO_InitStruct.Pin = CLK_STP0_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF4_TIM15;
-    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP0_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM15_MspPostInit 1 */
 
@@ -554,12 +553,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     /**TIM16 GPIO Configuration
     PF6     ------> TIM16_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    GPIO_InitStruct.Pin = CLK_STP1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM16;
-    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP1_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM16_MspPostInit 1 */
 
@@ -575,12 +574,12 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
     /**TIM17 GPIO Configuration
     PF7     ------> TIM17_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_7;
+    GPIO_InitStruct.Pin = CLK_STP2_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF1_TIM17;
-    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+    HAL_GPIO_Init(CLK_STP2_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN TIM17_MspPostInit 1 */
 
@@ -608,7 +607,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PE9     ------> TIM1_CH1
     PE11     ------> TIM1_CH2
     */
-    HAL_GPIO_DeInit(GPIOE, GPIO_PIN_9|GPIO_PIN_11);
+    HAL_GPIO_DeInit(GPIOE, EA_2_Pin|EB_2_Pin);
 
   /* USER CODE BEGIN TIM1_MspDeInit 1 */
 
@@ -626,7 +625,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PA0     ------> TIM2_CH1
     PA1     ------> TIM2_CH2
     */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0|GPIO_PIN_1);
+    HAL_GPIO_DeInit(GPIOA, EA_0_Pin|EB_0_Pin);
 
   /* USER CODE BEGIN TIM2_MspDeInit 1 */
 
@@ -644,7 +643,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PC6     ------> TIM3_CH1
     PC7     ------> TIM3_CH2
     */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_6|GPIO_PIN_7);
+    HAL_GPIO_DeInit(GPIOC, EA_7_Pin|EB_7_Pin);
 
   /* USER CODE BEGIN TIM3_MspDeInit 1 */
 
@@ -662,9 +661,9 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PD13     ------> TIM4_CH2
     PB6     ------> TIM4_CH1
     */
-    HAL_GPIO_DeInit(GPIOD, GPIO_PIN_13);
+    HAL_GPIO_DeInit(EB_5_GPIO_Port, EB_5_Pin);
 
-    HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6);
+    HAL_GPIO_DeInit(EA_5_GPIO_Port, EA_5_Pin);
 
   /* USER CODE BEGIN TIM4_MspDeInit 1 */
 
@@ -682,7 +681,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PH10     ------> TIM5_CH1
     PH11     ------> TIM5_CH2
     */
-    HAL_GPIO_DeInit(GPIOH, GPIO_PIN_10|GPIO_PIN_11);
+    HAL_GPIO_DeInit(GPIOH, EA_3_Pin|EB_3_Pin);
 
   /* USER CODE BEGIN TIM5_MspDeInit 1 */
 
@@ -700,7 +699,7 @@ void HAL_TIM_Encoder_MspDeInit(TIM_HandleTypeDef* htim_encoder)
     PJ6     ------> TIM8_CH2
     PJ8     ------> TIM8_CH1
     */
-    HAL_GPIO_DeInit(GPIOJ, GPIO_PIN_6|GPIO_PIN_8);
+    HAL_GPIO_DeInit(GPIOJ, EB_6_Pin|EA_6_Pin);
 
   /* USER CODE BEGIN TIM8_MspDeInit 1 */
 
