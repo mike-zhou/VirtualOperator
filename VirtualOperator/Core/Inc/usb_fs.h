@@ -22,7 +22,7 @@ void init_usb_fs();
 void poll_usb_fs();
 
 bool get_usb_fs_byte(uint8_t * p_buffer);
-bool send_usb_fs_bytes(const uint8_t * p_buffer, uint32_t length);
+bool send_usb_fs_bytes(const uint8_t * p_buffer, const uint32_t length);
 
 
 #endif /* INC_USB_FS_H_ */

@@ -116,7 +116,7 @@ bool get_usb_fs_byte(uint8_t * p_buffer)
 	return cbuf_get(&_cb_receiving, p_buffer);
 }
 
-bool send_usb_fs_bytes(const uint8_t * p_buffer, uint32_t length)
+bool send_usb_fs_bytes(const uint8_t * p_buffer, const uint32_t length)
 {
 	if(NULL == p_buffer)
 	{

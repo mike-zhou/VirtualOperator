@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "usart1.h"
 #include "usb_fs.h"
+#include "peer_exchange.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,6 +95,11 @@ static void MX_USB_OTG_HS_PCD_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+static inline bool wrapper_send_bytes_to_peer(const uint8_t * p_buffer, const uint16_t length)
+{
+	return send_usb_fs_bytes(p_buffer, length);
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -147,34 +153,31 @@ int main(void)
   MX_USB_OTG_HS_PCD_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+
+  print_log("Virtual Operator\r\n");
+
+  if(!init_peer_exchange(get_usb_fs_byte,
+		  wrapper_send_bytes_to_peer,
+		  NULL,
+		  NULL))
+  {
+	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
+  }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  print_log("This is USB FS echo\r\n");
-  uint8_t cache[256];
 
   while (1)
   {
-	 poll_usart1();
-	 poll_usb_fs();
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 uint32_t byte_count;
-	 for(byte_count = 0; byte_count < sizeof(cache); byte_count++)
-	 {
-		 if(!get_usb_fs_byte(cache + byte_count))
-			 break;
-	 }
-	 if(byte_count > 0)
-	 {
-		 if(send_usb_fs_bytes(cache, byte_count) == false)
-		 {
-			 //print_log("Failed to echo %d bytes to host\r\n", byte_count);
-		 }
-	 }
+	 poll_usart1();
+	 poll_usb_fs();
+	 poll_peer_exchange();
   }
   /* USER CODE END 3 */
 }

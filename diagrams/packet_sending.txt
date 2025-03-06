@@ -1,0 +1,16 @@
+@startuml
+
+[*] --> IDLE
+
+' on_send_ack: an ack packet is to be sent out. state is not
+' affected if the packet is sent out successfully or not.
+IDLE -> IDLE: on_send_ack
+
+IDLE --> WAIT_ACK: packet is sent
+
+' on_ack: an acknowledgement is received
+WAIT_ACK --> IDLE: on_ack
+
+WAIT_ACK -> WAIT_ACK: on_send_ack
+
+@enduml

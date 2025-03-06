@@ -1,0 +1,26 @@
+@startuml
+
+' Packet is in the format of Tag-Length-Value
+' Tag: 1 byte, 0xDD for data packet, 0xAA for acknowledge packet
+' Length: 1 byte, indicating how many bytes following the Lenght
+' Value: bytes, whose length is indicated by the Length
+
+[*] --> IDLE
+
+IDLE --> IDLE: 0xXX
+IDLE --> DATA_PACKET: 0xDD
+IDLE --> ACK_PACKET: 0xAA
+
+DATA_PACKET --> IDLE: timeout
+ACK_PACKET --> IDLE: timeout
+
+DATA_PACKET --> DATA_PACKET: incomplete
+ACK_PACKET --> ACK_PACKET: incomplete
+
+DATA_PACKET --> IDLE: complete
+
+ACK_PACKET --> IDLE: complete
+
+
+
+@enduml
