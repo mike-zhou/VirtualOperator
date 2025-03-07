@@ -12,8 +12,8 @@
 #include "usart1.h"
 
 
-#define USB_FS_SENDING_BUFFER_SIZE 0x10000
-#define USB_FS_RECEIVING_BUFFER_SIZE 0x10000
+#define USB_FS_SENDING_BUFFER_SIZE 4096
+#define USB_FS_RECEIVING_BUFFER_SIZE 4096
 
 static uint8_t _sending_buffer[USB_FS_SENDING_BUFFER_SIZE];
 static uint8_t _receiving_buffer[USB_FS_RECEIVING_BUFFER_SIZE];
