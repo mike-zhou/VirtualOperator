@@ -25,6 +25,7 @@
 #include "usart1.h"
 #include "usb_fs.h"
 #include "peer_exchange.h"
+#include "app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -154,12 +155,12 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-  print_log("Virtual Operator\r\n");
+  print_log("Virtual Operator: %s\r\n", APP_VERSION);
 
   if(!init_peer_exchange(get_usb_fs_byte,
 		  wrapper_send_bytes_to_peer,
 		  NULL,
-		  NULL))
+		  on_host_command))
   {
 	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
   }
@@ -178,6 +179,7 @@ int main(void)
 	 poll_usart1();
 	 poll_usb_fs();
 	 poll_peer_exchange();
+	 poll_app();
   }
   /* USER CODE END 3 */
 }

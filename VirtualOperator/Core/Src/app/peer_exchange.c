@@ -9,8 +9,6 @@
 #include <peer_exchange.h>
 #include "usart1.h"
 
-
-#define MAX_PACKET_LENGTH 256
 #define OUTPUT_BUFFER_COUNT 16
 
 // maximum milliseconds between 2 bytes in a packet in input channel
@@ -46,7 +44,7 @@ enum ChannelState
 static struct InputChannel
 {
 	enum ChannelState state;
-	uint8_t buffer[MAX_PACKET_LENGTH];
+	uint8_t buffer[PACKET_MAX_LENGTH];
 	uint8_t data_count;
 	uint16_t timestamp;
 	uint8_t sequence_number_received;
@@ -57,7 +55,7 @@ static struct InputChannel
 static struct OutputChannel
 {
 	enum ChannelState state;
-	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][MAX_PACKET_LENGTH + 1];
+	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][PACKET_MAX_LENGTH + 1];
 	uint16_t head, tail;
 	uint16_t timestamp;
 	uint8_t sequence_number;
@@ -407,7 +405,7 @@ bool send_peer_message(const uint8_t * p_buf, const uint16_t length)
 		return false;
 	}
 
-	if(length > MAX_PACKET_LENGTH)
+	if(length > PACKET_CONTENT_MAX_LENGTH)
 	{
 		print_log("Error: message is too long: %d, in %s\r\n", length, __FILE__);
 		return false;
