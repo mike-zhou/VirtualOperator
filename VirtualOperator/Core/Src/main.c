@@ -101,6 +101,11 @@ static inline bool wrapper_send_bytes_to_peer(const uint8_t * p_buffer, const ui
 	return send_usb_fs_bytes(p_buffer, length);
 }
 
+static inline uint16_t wrapper_get_timestamp_ms(void)
+{
+	return HAL_GetTick();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -159,7 +164,7 @@ int main(void)
 
   if(!init_peer_exchange(get_usb_fs_byte,
 		  wrapper_send_bytes_to_peer,
-		  NULL,
+		  wrapper_get_timestamp_ms,
 		  on_host_command))
   {
 	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
