@@ -22,40 +22,54 @@
  * {
  * 		uint8_t tag,
  * 		uint8_t length,
- * 		uint8_t sequence_number,
- * 		uint8_t value[length - 1]
+ * 		struct
+ * 		{
+ * 			uint8_t sequence_number,
+ * 			uint8_t value[length - 2]
+ * 			uint8_t ending
+ * 		} value
  * }
  *
  * Tag 0xDD is for data packet
  * Tag 0xAA is for ACK packet
+ * Tag 0xEE is for packet end
  */
 
 #define SEQUENCE_NUMBER_INITIAL 0
 #define SEQUENCE_NUMBER_INVALID 255
 
-enum ChannelState
+#define ACK_TAG 	0xAA
+#define DATA_TAG 	0xDD
+#define END_TAG 	0xEE
+
+enum InputChannelState
+{
+	TAG = 0,
+	LENGTH,
+	VALUE
+};
+
+enum OutputChannelState
 {
 	IDLE = 0,
-	DATA_PACKET,
-	ACK_PACKET,
 	WAIT_ACK
 };
 
+
 static struct InputChannel
 {
-	enum ChannelState state;
+	enum InputChannelState state;
 	uint8_t buffer[PACKET_MAX_LENGTH];
 	uint8_t data_count;
 	uint16_t timestamp;
 	uint8_t sequence_number_received;
-	uint8_t ack_buffer[3];
 } _input_channel;
 
 
 static struct OutputChannel
 {
-	enum ChannelState state;
-	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][PACKET_MAX_LENGTH + 1];
+	enum OutputChannelState state;
+	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][PACKET_MAX_LENGTH];
 	uint16_t head, tail;
 	uint16_t timestamp;
 	uint8_t sequence_number;
@@ -66,34 +80,24 @@ static bool (* _send_bytes_to_peer)(const uint8_t * p_buffer, const uint16_t len
 static uint16_t (* _get_timestamp_ms)(void);
 static void (* _on_peer_message)(const uint8_t * p_buffer, const uint16_t length);
 
-static inline uint8_t next_sequence_number(uint8_t current_sequence_number)
+static inline uint8_t _next_sequence_number(uint8_t current_sequence_number)
 {
 	current_sequence_number++;
 	if(current_sequence_number == SEQUENCE_NUMBER_INVALID)
 	{
-		return 1; // skip SEQUENCE_NUMBER_INITIAL
+		return 1;
 	}
 	return current_sequence_number;
 }
 
-static void _on_peer_reset()
+static void _ack_peer(uint8_t sequence_number)
 {
-	print_log("Warning: peer reset in %s\r\n", __FILE__);
-	_output_channel.state = IDLE; // don't wait for ACK in case of WAIT_ACK state
+	uint8_t buffer[4] = {ACK_TAG, 2, sequence_number, END_TAG};
+
+	_send_bytes_to_peer(buffer, sizeof(buffer));
 }
 
-static void _send_ack_to_peer(const uint8_t * p_ack, const uint8_t length)
-{
-	if(length != sizeof(_input_channel.ack_buffer))
-	{
-		print_log("Error: wrong ACK packet length: %d in %s\r\n", length, __FILE__);
-		return;
-	}
-
-	_send_bytes_to_peer(p_ack, length);
-}
-
-static void _on_ack_from_peer(const uint8_t sequence_number)
+static void _on_ack(const uint8_t sequence_number)
 {
 	if(sequence_number == SEQUENCE_NUMBER_INVALID)
 	{
@@ -113,27 +117,74 @@ static void _on_ack_from_peer(const uint8_t sequence_number)
 
 	_output_channel.state = IDLE;
 	_output_channel.head = (_output_channel.head + 1) % OUTPUT_BUFFER_COUNT;
-	_output_channel.sequence_number = next_sequence_number(_output_channel.sequence_number);
+	_output_channel.sequence_number = _next_sequence_number(_output_channel.sequence_number);
 }
 
-static inline uint16_t timestamp_abs(uint16_t current_time, uint16_t previous_time)
+static inline uint16_t _timestamp_abs(uint16_t current_time, uint16_t previous_time)
 {
 	uint32_t time = current_time + 0x10000;
 	return (time - previous_time) & 0xFFFF;
 }
 
-static inline void _process_input_channel()
+static inline bool _check_packet_validity(const uint8_t * p_packet, const uint8_t length)
+{
+	if(length < 4)
+	{
+		return false; // less than an empty packet
+	}
+	if((p_packet[0] != ACK_TAG) && (p_packet[0] != DATA_TAG))
+	{
+		return false;
+	}
+	if(p_packet[length - 1] != END_TAG)
+	{
+		return false;
+	}
+	if(p_packet[2] == SEQUENCE_NUMBER_INVALID)
+	{
+		return false;
+	}
+	if(p_packet[1] > (PACKET_MAX_LENGTH - 2))
+	{
+		return false;
+	}
+	if(p_packet[1] != (length - 2))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+static void _on_data_packet(const uint8_t * p_packet, const uint8_t length)
+{
+	// a complete packet is received.
+	uint8_t sequence_number = p_packet[2];
+	_ack_peer(sequence_number);
+
+	if(sequence_number == _input_channel.sequence_number_received)
+	{
+		// this packet has just been received
+		return;
+	}
+
+	_on_peer_message(_input_channel.buffer + 3, length - 4);
+	_input_channel.sequence_number_received = sequence_number;
+}
+
+static void _process_input_channel()
 {
 	uint8_t byte;
 	uint16_t current_timestamp = _get_timestamp_ms();
-	bool update_timestamp = false; //update to true if any packet byte is received.
+	bool valid_byte_received = false; //update to true if any packet byte is received.
 
-	if(_input_channel.state != IDLE)
+	if(_input_channel.state != TAG)
 	{
-		if(timestamp_abs(current_timestamp, _input_channel.timestamp) >= PACKET_RECEIVING_TIMEOUT)
+		// check if timeout in input
+		if(_timestamp_abs(current_timestamp, _input_channel.timestamp) >= PACKET_RECEIVING_TIMEOUT)
 		{
-			print_log("Warning: timeout in %s in %s\r\n", __FUNCTION__, __FILE__);
-			_input_channel.state = IDLE;
+			print_log("Warning: input timeout in %s in %s\r\n", __FUNCTION__, __FILE__);
+			_input_channel.state = TAG;
 		}
 	}
 
@@ -141,159 +192,100 @@ static inline void _process_input_channel()
 	{
 		switch(_input_channel.state)
 		{
-			case IDLE:
+			case TAG:
 			{
 				if(!_get_byte_from_peer(&byte))
 				{
-					return; // no input in IDLE state
+					return; // no input in TAG state
 				}
 				switch(byte)
 				{
-					case 0xDD:
+					case DATA_TAG:
+					case ACK_TAG:
 					{
 						_input_channel.buffer[0] = byte;
 						_input_channel.data_count = 1;
-						_input_channel.state = DATA_PACKET;
-						update_timestamp = true;
-					}
-					break;
-					case 0xAA:
-					{
-						_input_channel.buffer[0] = byte;
-						_input_channel.data_count = 1;
-						_input_channel.state = ACK_PACKET;
-						update_timestamp = true;
+						_input_channel.state = LENGTH;
+						valid_byte_received = true;
 					}
 					break;
 					default:
 					{
-						update_timestamp = false;
+						valid_byte_received = false;
 						// ignore byte which is not Tag.
 					}
 					break;
 				}
 			}
 			break;
-			case DATA_PACKET:
+
+			case LENGTH:
 			{
 				if(!_get_byte_from_peer(&byte))
 				{
-					if(update_timestamp)
+					if(valid_byte_received)
 					{
 						_input_channel.timestamp = current_timestamp;
 					}
 					return;
 				}
 
+				if((byte == 0) || (byte > (PACKET_MAX_LENGTH - 2)))
+				{
+					// invalid length
+					_input_channel.state = TAG;
+					continue;
+				}
+
 				// save the byte
-				update_timestamp = true;
-				_input_channel.buffer[_input_channel.data_count] = byte;
-				_input_channel.data_count += 1;
-
-				if(_input_channel.data_count == 2)
-				{
-					const uint8_t length = _input_channel.buffer[1];
-					if(length == 0)
-					{
-						// content error, ignore current packet
-						print_log("Error: data packet length is 0 in %s\r\n", __FILE__);
-						_input_channel.state = IDLE;
-					}
-				}
-				else if(_input_channel.data_count > 2)
-				{
-					// check if a complete packet is received
-					const uint8_t length = _input_channel.buffer[1];
-					const uint8_t sequence_number = _input_channel.buffer[2];
-
-					if(SEQUENCE_NUMBER_INVALID == sequence_number)
-					{
-						// error in packet content, ignore current packet
-						print_log("Error: invalid sequence number in data packet in %s\r\n", __FILE__);
-						_input_channel.state = IDLE;
-					}
-					else if(length == (_input_channel.data_count - 2))
-					{
-						// a complete packet is received.
-						_input_channel.ack_buffer[2] = sequence_number;
-						_send_ack_to_peer(_input_channel.ack_buffer, sizeof(_input_channel.ack_buffer));
-
-						if(sequence_number == _input_channel.sequence_number_received)
-						{
-							// this packet has just been received, then get ready to receive next packet
-							_input_channel.state = IDLE;
-						}
-						else
-						{
-							if(SEQUENCE_NUMBER_INITIAL == sequence_number)
-							{
-								_on_peer_reset();
-							}
-							_on_peer_message(_input_channel.buffer + 3, length - 1);
-							_input_channel.sequence_number_received = sequence_number;
-							_input_channel.state = IDLE; // get ready to receive next packet
-						}
-					}
-					else if(length > (_input_channel.data_count - 2))
-					{
-						// either length or data_count is wrongly changed, which shouldn't happen
-						print_log("Error: either length (%d) or data_count (%d) is wrong in data packet receiving in %s\r\n", length, _input_channel.data_count, __FILE__);
-						_input_channel.state = IDLE;
-					}
-				}
+				valid_byte_received = true;
+				_input_channel.buffer[1] = byte;
+				_input_channel.data_count = 2;
+				_input_channel.state = VALUE;
 			}
 			break;
-			case ACK_PACKET:
+
+			case VALUE:
 			{
 				if(!_get_byte_from_peer(&byte))
 				{
-					if(update_timestamp)
+					if(valid_byte_received)
 					{
 						_input_channel.timestamp = current_timestamp;
 					}
 					return;
 				}
 
-				// save the byte
-				update_timestamp = true;
+				valid_byte_received = true;
 				_input_channel.buffer[_input_channel.data_count] = byte;
-				_input_channel.data_count += 1;
+				_input_channel.data_count++;
 
-				if(_input_channel.data_count == 2)
+				if(_input_channel.data_count < (_input_channel.buffer[1] + 2))
 				{
-					const uint8_t length = _input_channel.buffer[1];
-					if(length != 1)
+					continue; // incomplete packet
+				}
+
+				// a complete packet is received
+				uint8_t * p_packet = _input_channel.buffer;
+				if(_check_packet_validity(p_packet, _input_channel.data_count))
+				{
+					if(p_packet[0] == ACK_TAG)
 					{
-						// content error, ignore current packet
-						print_log("Error: wrong length (%d) in ACK packet in %s\r\n", length, __FILE__);
-						_input_channel.state = IDLE;
+						_on_ack(p_packet[2]);
+					}
+					else if(p_packet[0] == DATA_TAG)
+					{
+						_on_data_packet(p_packet,  _input_channel.data_count);
 					}
 				}
-				else if(_input_channel.data_count == 3)
-				{
-					const uint8_t sequence_number = _input_channel.buffer[2];
-					if(SEQUENCE_NUMBER_INVALID != sequence_number)
-					{
-						_on_ack_from_peer(sequence_number);
-					}
-					else
-					{
-						// program shouldn't get here
-						print_log("Error: invalid sequence number in ACK packet in %s\r\n", __FILE__);
-					}
-					_input_channel.state = IDLE;
-				}
-				else
-				{
-					// program shouldn't get here
-					print_log("Error: wrong data_count (%d) in ACP packet in %s\r\n", _input_channel.data_count, __FILE__);
-					_input_channel.state = IDLE;
-				}
+
+				_input_channel.state = TAG;
 			}
 			break;
+
 			default:
 				print_log("Error: wrong input_channel state (%d) in %s\r\n", _input_channel.state, __FILE__);
-				_input_channel.state = IDLE;
+				_input_channel.state = TAG;
 				return;
 		}
 	}
@@ -318,9 +310,10 @@ static inline void _process_output_channel()
 			return; // no data to send out
 		}
 
-		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head] + 1;
-		uint8_t length = _output_channel.buffer_array[_output_channel.head][0];
-		if(!_send_bytes_to_peer(p_buf, length))
+		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
+		uint8_t packet_length = p_buf[1] + 2;
+		p_buf[2] = _output_channel.sequence_number;
+		if(!_send_bytes_to_peer(p_buf, packet_length))
 		{
 			// fail to send data to peer
 			return;
@@ -335,32 +328,27 @@ static inline void _process_output_channel()
 	{
 		uint16_t current_timestamp = _get_timestamp_ms();
 
-		if(timestamp_abs(current_timestamp, _output_channel.timestamp) < PACKET_ACK_TIMEOUT)
+		if(_timestamp_abs(current_timestamp, _output_channel.timestamp) < PACKET_ACK_TIMEOUT)
 		{
 			// keep waiting for ACK
 			return;
 		}
 
-		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head] + 1;
-		uint8_t length = _output_channel.buffer_array[_output_channel.head][0];
-		if(!_send_bytes_to_peer(p_buf, length))
-		{
-			// fail to send data to peer again
-			return;
-		}
-		else
-		{
-			// update time stamp
-			_output_channel.timestamp = current_timestamp;
-		}
+		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
+		uint8_t packet_length = p_buf[1] + 2;
+		_send_bytes_to_peer(p_buf, packet_length);
+		_output_channel.timestamp = current_timestamp;
 	}
 	else
 	{
-		print_log("Error: wrong output channel state (%d) in %s\r\n", __FILE__);
+		print_log("Error: wrong output channel state (%d) in %s\r\n", _output_channel.state, __FILE__);
 		_output_channel.state = IDLE;
 	}
 }
 
+/**
+ * Initialize the peer_exchange
+ */
 bool init_peer_exchange(
 		bool (*get_byte_from_peer)(uint8_t * const p_bype), // receive a byte from the peer
 		bool (*send_bytes_to_peer)(const uint8_t * p_buffer, const uint16_t length), // send bytes to the peer
@@ -382,21 +370,22 @@ bool init_peer_exchange(
 	_get_timestamp_ms = get_timestamp_ms;
 	_on_peer_message = on_peer_message;
 
-	_input_channel.state = IDLE;
+	_input_channel.state = TAG;
 	_input_channel.data_count = 0;
 	_input_channel.sequence_number_received = SEQUENCE_NUMBER_INVALID;
-	_input_channel.ack_buffer[0] = 0xAA;
-	_input_channel.ack_buffer[1] = 1;
 
 	_output_channel.state = IDLE;
 	_output_channel.head = 0;
 	_output_channel.tail = 0;
-	_output_channel.sequence_number = SEQUENCE_NUMBER_INITIAL;
+	_output_channel.sequence_number = SEQUENCE_NUMBER_INITIAL; // the first data packet
 
 	return true;
 }
 
-bool send_peer_message(const uint8_t * p_buf, const uint16_t length)
+/**
+ * Put the message to output channel
+ */
+bool send_peer_message(const uint8_t * p_msg, const uint16_t msg_length)
 {
 	const uint16_t new_tail = (_output_channel.tail + 1) % OUTPUT_BUFFER_COUNT;
 	if(new_tail == _output_channel.head)
@@ -405,19 +394,28 @@ bool send_peer_message(const uint8_t * p_buf, const uint16_t length)
 		return false;
 	}
 
-	if(length > PACKET_CONTENT_MAX_LENGTH)
+	if(msg_length > PACKET_CONTENT_MAX_LENGTH)
 	{
-		print_log("Error: message is too long: %d, in %s\r\n", length, __FILE__);
+		print_log("Error: message is too long: %d, in %s\r\n", msg_length, __FILE__);
 		return false;
 	}
 
-	_output_channel.buffer_array[_output_channel.tail][0] = (uint8_t)length;
-	memcpy(_output_channel.buffer_array[_output_channel.tail] + 1, p_buf, length);
+	uint8_t * p_packet = _output_channel.buffer_array[_output_channel.tail];
+	p_packet[0] = DATA_TAG; // tag
+	p_packet[1] = msg_length + 2; // length
+	// p_packet[2] = sequence_number; // be assigned just before being sent
+	memcpy(p_packet + 3, p_msg, msg_length);
+	p_packet[msg_length + 1] = END_TAG;
+
 	_output_channel.tail = new_tail;
 
 	return true;
 }
 
+/**
+ * This function needs to be called repeatedly to drive the peer_exchange,
+ * the interval should be less than PACKET_RECEIVING_TIMEOUT
+ */
 void poll_peer_exchange()
 {
 	_process_input_channel();

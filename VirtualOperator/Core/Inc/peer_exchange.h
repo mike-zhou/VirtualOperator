@@ -12,7 +12,8 @@
 #include <stdbool.h>
 
 #define PACKET_MAX_LENGTH 256
-#define PACKET_CONTENT_MAX_LENGTH (256 - 3) // 3 bytes for Tag, Length, sequence number
+#define PACKET_CONTENT_MAX_LENGTH (PACKET_MAX_LENGTH - 4) // 4 bytes for Tag, Length, sequence number and ending
+
 
 bool init_peer_exchange(
 		bool (*get_byte_from_peer)(uint8_t * const p_bype), // receive a byte from the peer
@@ -21,7 +22,7 @@ bool init_peer_exchange(
 		void (*on_peer_message)(const uint8_t * p_buffer, const uint16_t length) // function which processes a peer message
 		);
 
-bool send_peer_message(const uint8_t * p_buffer, const uint16_t length);
+bool send_peer_message(const uint8_t * p_msg, const uint16_t msg_length);
 
 void poll_peer_exchange();
 
