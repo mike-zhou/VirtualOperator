@@ -6,15 +6,15 @@
  */
 
 #include <string.h>
-#include <peer_exchange.h>
+#include "peer_exchange.h"
 #include "usart1.h"
 
 #define OUTPUT_BUFFER_COUNT 16
 
 // maximum milliseconds between 2 bytes in a packet in input channel
-#define PACKET_RECEIVING_TIMEOUT 10
+#define PACKET_RECEIVING_TIMEOUT 1000
 // maximum milliseconds that an output packet must be acknowledged in output channel
-#define PACKET_ACK_TIMEOUT 20
+#define PACKET_ACK_TIMEOUT 2000
 
 /**
  * Packet is in the format:
@@ -94,6 +94,7 @@ static void _ack_peer(uint8_t sequence_number)
 {
 	uint8_t buffer[4] = {ACK_TAG, 2, sequence_number, END_TAG};
 
+	print_log("PeerExchange: Send ACK to peer, sequence_number: %d\r\n", sequence_number);
 	_send_bytes_to_peer(buffer, sizeof(buffer));
 }
 
@@ -156,13 +157,14 @@ static inline bool _check_packet_validity(const uint8_t * p_packet, const uint8_
 	return true;
 }
 
-static void _on_data_packet(const uint8_t * p_packet, const uint8_t length)
+static void _on_data(const uint8_t * p_packet, const uint8_t length)
 {
 	// a complete packet is received.
 	uint8_t sequence_number = p_packet[2];
 	_ack_peer(sequence_number);
 
-	if(sequence_number == _input_channel.sequence_number_received)
+	if((sequence_number == _input_channel.sequence_number_received) &&
+			(sequence_number != SEQUENCE_NUMBER_INITIAL))
 	{
 		// this packet has just been received
 		return;
@@ -183,7 +185,7 @@ static void _process_input_channel()
 		// check if timeout in input
 		if(_timestamp_abs(current_timestamp, _input_channel.timestamp) >= PACKET_RECEIVING_TIMEOUT)
 		{
-			print_log("Warning: input timeout in %s in %s\r\n", __FUNCTION__, __FILE__);
+			print_log("Warning: PeerExchange: input timeout in %s in %s\r\n", __FUNCTION__, __FILE__);
 			_input_channel.state = TAG;
 		}
 	}
@@ -271,12 +273,22 @@ static void _process_input_channel()
 				{
 					if(p_packet[0] == ACK_TAG)
 					{
+						print_log("PeerExchange: ACK packet arrives, sequence_number: %d\r\n", p_packet[2]);
 						_on_ack(p_packet[2]);
 					}
 					else if(p_packet[0] == DATA_TAG)
 					{
-						_on_data_packet(p_packet,  _input_channel.data_count);
+						print_log("PeerExchange: DATA packet arrives, sequence_number: %d, %d bytes\r\n", p_packet[2], _input_channel.data_count);
+						_on_data(p_packet, _input_channel.data_count);
 					}
+					else
+					{
+						print_log("Error: PeerExchange: unknown packet arrives, TAG: %d\r\n", p_packet[0]);
+					}
+				}
+				else
+				{
+					print_log("Error: PeerExchange: invalid packet arrives\r\n");
 				}
 
 				_input_channel.state = TAG;
@@ -284,7 +296,7 @@ static void _process_input_channel()
 			break;
 
 			default:
-				print_log("Error: wrong input_channel state (%d) in %s\r\n", _input_channel.state, __FILE__);
+				print_log("Error: PeerExchange: wrong input_channel state (%d) in %s\r\n", _input_channel.state, __FILE__);
 				_input_channel.state = TAG;
 				return;
 		}
@@ -298,7 +310,7 @@ static inline void _process_output_channel()
 		if((_output_channel.head >= OUTPUT_BUFFER_COUNT) ||
 				(_output_channel.tail >= OUTPUT_BUFFER_COUNT))
 		{
-			print_log("Error: output buffer index wrong, head: %d, tail: %d, in %s\r\n", _output_channel.head, _output_channel.tail, __FILE__);
+			print_log("Error: PeerExchange: output buffer index wrong, head: %d, tail: %d, in %s\r\n", _output_channel.head, _output_channel.tail, __FILE__);
 			_output_channel.state = IDLE;
 			_output_channel.head = 0;
 			_output_channel.tail = 0;
@@ -313,9 +325,11 @@ static inline void _process_output_channel()
 		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
 		uint8_t packet_length = p_buf[1] + 2;
 		p_buf[2] = _output_channel.sequence_number;
+		print_log("PeerExchange: Send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
 		if(!_send_bytes_to_peer(p_buf, packet_length))
 		{
 			// fail to send data to peer
+			print_log("Error: PeerExchange: failed in sending packet to peer\r\n");
 			return;
 		}
 		else
@@ -336,12 +350,16 @@ static inline void _process_output_channel()
 
 		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
 		uint8_t packet_length = p_buf[1] + 2;
-		_send_bytes_to_peer(p_buf, packet_length);
+		print_log("PeerExchange: Re-send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
+		if(!_send_bytes_to_peer(p_buf, packet_length))
+		{
+			print_log("Error: PeerExchange: failed in re-sending packet\r\n");
+		}
 		_output_channel.timestamp = current_timestamp;
 	}
 	else
 	{
-		print_log("Error: wrong output channel state (%d) in %s\r\n", _output_channel.state, __FILE__);
+		print_log("Error: PeerExchange: wrong output channel state (%d) in %s\r\n", _output_channel.state, __FILE__);
 		_output_channel.state = IDLE;
 	}
 }
@@ -405,7 +423,7 @@ bool send_peer_message(const uint8_t * p_msg, const uint16_t msg_length)
 	p_packet[1] = msg_length + 2; // length
 	// p_packet[2] = sequence_number; // be assigned just before being sent
 	memcpy(p_packet + 3, p_msg, msg_length);
-	p_packet[msg_length + 1] = END_TAG;
+	p_packet[msg_length + 4 - 1] = END_TAG;
 
 	_output_channel.tail = new_tail;
 

@@ -50,6 +50,8 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		return;
 	}
 
+	print_log("host cmd: %d, %d bytes\r\n", p_command[0], length);
+
 	uint8_t host_command = p_command[0];
 	switch(host_command)
 	{

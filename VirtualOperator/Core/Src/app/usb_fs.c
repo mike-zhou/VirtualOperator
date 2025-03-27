@@ -54,6 +54,7 @@ static void _start_sending()
 		int8_t result = CDC_Transmit_FS(cache, byte_count);
 		if(result == USBD_OK)
 		{
+			print_log("Wrote %d bytes to USB\r\n", byte_count);
 			transmit_again = false;
 		}
 		else
@@ -74,8 +75,10 @@ void on_usb_fs_receiving_complete(const uint8_t * buffer, uint32_t length)
 		if(!cbuf_put(&_cb_receiving, buffer[i]))
 			break;
 	}
+	print_log("Read %d bytes from USB\r\n", i);
 	if(i!=length)
 	{
+		print_log("Error: input circular buffer overflow\r\n");
 		_cb_receiving_overflow = true;
 	}
 }

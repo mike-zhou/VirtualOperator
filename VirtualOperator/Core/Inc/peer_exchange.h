@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PACKET_MAX_LENGTH 256
 #define PACKET_CONTENT_MAX_LENGTH (PACKET_MAX_LENGTH - 4) // 4 bytes for Tag, Length, sequence number and ending
 
@@ -25,5 +29,9 @@ bool init_peer_exchange(
 bool send_peer_message(const uint8_t * p_msg, const uint16_t msg_length);
 
 void poll_peer_exchange();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* INC_PEER_EXCHANGE_H_ */
