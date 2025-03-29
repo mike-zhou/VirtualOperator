@@ -27,6 +27,11 @@ static void _on_version(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, i + 1);
 }
 
+static void _on_echo(const uint8_t * p_cmd, const uint16_t length)
+{
+	send_peer_message(p_cmd, length);
+}
+
 static void _on_get_gpios(const uint8_t * p_cmd, const uint16_t length)
 {
 
@@ -57,6 +62,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	{
 	case HOST_COMMAND_VERSION:
 		_on_version(p_command, length);
+		break;
+	case HOST_COMMAND_ECHO:
+		_on_echo(p_command, length);
 		break;
 	case HOST_COMMAND_GET_GPIOS:
 		_on_get_gpios(p_command, length);
