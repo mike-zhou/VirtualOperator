@@ -94,7 +94,7 @@ static void _ack_peer(uint8_t sequence_number)
 {
 	uint8_t buffer[4] = {ACK_TAG, 2, sequence_number, END_TAG};
 
-	print_log("PeerExchange: Send ACK to peer, sequence_number: %d\r\n", sequence_number);
+	// print_log("PeerExchange: Send ACK to peer, sequence_number: %d\r\n", sequence_number);
 	_send_bytes_to_peer(buffer, sizeof(buffer));
 }
 
@@ -273,12 +273,12 @@ static void _process_input_channel()
 				{
 					if(p_packet[0] == ACK_TAG)
 					{
-						print_log("PeerExchange: ACK packet arrives, sequence_number: %d\r\n", p_packet[2]);
+						// print_log("PeerExchange: ACK packet arrives, sequence_number: %d\r\n", p_packet[2]);
 						_on_ack(p_packet[2]);
 					}
 					else if(p_packet[0] == DATA_TAG)
 					{
-						print_log("PeerExchange: DATA packet arrives, sequence_number: %d, %d bytes\r\n", p_packet[2], _input_channel.data_count);
+						// print_log("PeerExchange: DATA packet arrives, sequence_number: %d, %d bytes\r\n", p_packet[2], _input_channel.data_count);
 						_on_data(p_packet, _input_channel.data_count);
 					}
 					else
@@ -325,7 +325,7 @@ static inline void _process_output_channel()
 		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
 		uint8_t packet_length = p_buf[1] + 2;
 		p_buf[2] = _output_channel.sequence_number;
-		print_log("PeerExchange: Send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
+		// print_log("PeerExchange: Send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
 		if(!_send_bytes_to_peer(p_buf, packet_length))
 		{
 			// fail to send data to peer
@@ -350,7 +350,7 @@ static inline void _process_output_channel()
 
 		uint8_t * p_buf = _output_channel.buffer_array[_output_channel.head];
 		uint8_t packet_length = p_buf[1] + 2;
-		print_log("PeerExchange: Re-send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
+		// print_log("PeerExchange: Re-send packet to peer, sequence_number: %d, %d bytes\r\n", _output_channel.sequence_number, packet_length);
 		if(!_send_bytes_to_peer(p_buf, packet_length))
 		{
 			print_log("Error: PeerExchange: failed in re-sending packet\r\n");
