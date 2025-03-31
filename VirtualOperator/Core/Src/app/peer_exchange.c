@@ -12,9 +12,9 @@
 #define OUTPUT_BUFFER_COUNT 16
 
 // maximum milliseconds between 2 bytes in a packet in input channel
-#define PACKET_RECEIVING_TIMEOUT 1000
+#define PACKET_RECEIVING_TIMEOUT 10
 // maximum milliseconds that an output packet must be acknowledged in output channel
-#define PACKET_ACK_TIMEOUT 2000
+#define PACKET_ACK_TIMEOUT 20
 
 /**
  * Packet is in the format:
@@ -163,8 +163,7 @@ static void _on_data(const uint8_t * p_packet, const uint8_t length)
 	uint8_t sequence_number = p_packet[2];
 	_ack_peer(sequence_number);
 
-	if((sequence_number == _input_channel.sequence_number_received) &&
-			(sequence_number != SEQUENCE_NUMBER_INITIAL))
+	if(sequence_number == _input_channel.sequence_number_received)
 	{
 		// this packet has just been received
 		return;
