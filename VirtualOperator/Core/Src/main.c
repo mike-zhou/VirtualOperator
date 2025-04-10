@@ -170,6 +170,9 @@ int main(void)
 	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
   }
 
+  HAL_TIM_Base_Start_IT(&htim17);
+  print_log("Timer 17 is started\r\n");
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -929,7 +932,7 @@ static void MX_TIM17_Init(void)
 
   /* USER CODE END TIM17_Init 1 */
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 0;
+  htim17.Init.Prescaler = 3640;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim17.Init.Period = 65535;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
