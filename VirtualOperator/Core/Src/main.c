@@ -170,18 +170,18 @@ int main(void)
 	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
   }
 
-  HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(&htim17);
-  if(rc != HAL_OK)
-  {
-	  print_log("Error: failed to start Timer 17 base\r\n");
-  }
-  rc = HAL_TIM_OC_Start_IT(&htim17, TIM_CHANNEL_1);
-  if(rc != HAL_OK)
-  {
-	  print_log("Error: failed to start Timer 17 OC\r\n");
-  }
 
-  print_log("Timer 17 is started\r\n");
+  /* Enable the TIM Update interrupt */
+  __HAL_TIM_ENABLE_IT(&htim17, TIM_IT_UPDATE);
+  HAL_StatusTypeDef rc = HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
+  if(rc != HAL_OK)
+  {
+	  print_log("Error: failed to start Timer 17 PWM\r\n");
+  }
+  else
+  {
+	  print_log("Timer 17 is started\r\n");
+  }
 
   /* USER CODE END 2 */
 
@@ -942,7 +942,7 @@ static void MX_TIM17_Init(void)
 
   /* USER CODE END TIM17_Init 1 */
   htim17.Instance = TIM17;
-  htim17.Init.Prescaler = 3640;
+  htim17.Init.Prescaler = 4096;
   htim17.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim17.Init.Period = 65535;
   htim17.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -952,21 +952,22 @@ static void MX_TIM17_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_Init(&htim17) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim17) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 0x7fff;
+  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.Pulse = 32768;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
   sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_OC_ConfigChannel(&htim17, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  if (HAL_TIM_PWM_ConfigChannel(&htim17, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
+  __HAL_TIM_DISABLE_OCxPRELOAD(&htim17, TIM_CHANNEL_1);
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
