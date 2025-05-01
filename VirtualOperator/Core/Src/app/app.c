@@ -160,105 +160,105 @@ static void _on_read_gpios(const uint8_t * p_cmd, const uint16_t length)
 
 static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
 {
+	_reply[0] = p_cmd[0];
 
-	if(length != 4)
+	if((length % 3) != 1)
 	{
 		print_log("Error: wrong length of HOST_COMMAND_SET_GPIO: %d\r\n", length);
-		_reply[0] = p_cmd[0];
 		send_peer_message(_reply, 1);
 		return;
 	}
 
-	uint8_t portIndex = p_cmd[1];
-	uint8_t bitIndex = p_cmd[2];
-	uint8_t level = p_cmd[3];
+	uint8_t portCount = (length - 1) / 3;
+	for(uint8_t i=0; i<portCount; i++)
+	{
+		uint8_t portIndex = p_cmd[i*3+1];
+		uint8_t bitIndex = 	p_cmd[i*3+2];
+		uint8_t level = 	p_cmd[i*3+3];
 
-	GPIO_TypeDef * pPort = NULL;
+		GPIO_TypeDef * pPort = NULL;
 
-	switch(portIndex)
-	{
-	case 0:
-		pPort = GPIOA;
-		break;
-	case 1:
-		pPort = GPIOB;
-		break;
-	case 2:
-		pPort = GPIOC;
-		break;
-	case 3:
-		pPort = GPIOD;
-		break;
-	case 4:
-		pPort = GPIOE;
-		break;
-	case 5:
-		pPort = GPIOF;
-		break;
-	case 6:
-		pPort = GPIOG;
-		break;
-	case 7:
-		pPort = GPIOH;
-		break;
-	case 8:
-		pPort = GPIOI;
-		break;
-	case 9:
-		pPort = GPIOJ;
-		break;
-	case 10:
-		pPort = GPIOK;
-		break;
-	default:
-		break;
+		switch(portIndex)
+		{
+		case 0:
+			pPort = GPIOA;
+			break;
+		case 1:
+			pPort = GPIOB;
+			break;
+		case 2:
+			pPort = GPIOC;
+			break;
+		case 3:
+			pPort = GPIOD;
+			break;
+		case 4:
+			pPort = GPIOE;
+			break;
+		case 5:
+			pPort = GPIOF;
+			break;
+		case 6:
+			pPort = GPIOG;
+			break;
+		case 7:
+			pPort = GPIOH;
+			break;
+		case 8:
+			pPort = GPIOI;
+			break;
+		case 9:
+			pPort = GPIOJ;
+			break;
+		case 10:
+			pPort = GPIOK;
+			break;
+		default:
+			break;
+		}
+
+		if(pPort == NULL)
+		{
+			print_log("Error: wrong port index (%d) in HOST_COMMAND_SET_GPIO\r\n", portIndex);
+			send_peer_message(_reply, 1);
+			return;
+		}
+		if(bitIndex > 15)
+		{
+			print_log("Error: wrong bit index (%d) in HOST_COMMAND_SET_GPIO\r\n", bitIndex);
+			send_peer_message(_reply, 1);
+			return;
+		}
+		if(level > 1)
+		{
+			print_log("Error: wrong level (%d) in HOST_COMMAND_SET_GPIO\r\n", level);
+			send_peer_message(_reply, 1);
+			return;
+		}
+
+		uint16_t mode = _get_gpio_mode(pPort);
+		if((mode & (1 << bitIndex)) == 0)
+		{
+			print_log("Error: write read-only GPIO (%d) in HOST_COMMAND_SET_GPIO\r\n", bitIndex);
+			send_peer_message(_reply, 1);
+			return;
+		}
+
+		if(level == 0)
+		{
+			HAL_GPIO_WritePin(pPort, 1 << bitIndex, GPIO_PIN_RESET);
+		}
+		else
+		{
+			HAL_GPIO_WritePin(pPort, 1 << bitIndex, GPIO_PIN_SET);
+		}
+
+		_reply[i*3+1] = portIndex;
+		_reply[i*3+2] = bitIndex;
+		_reply[i*3+3] = level;
 	}
 
-	if(pPort == NULL)
-	{
-		print_log("Error: wrong port index (%d) in HOST_COMMAND_SET_GPIO\r\n", portIndex);
-		_reply[0] = p_cmd[0];
-		send_peer_message(_reply, 1);
-		return;
-	}
-	if(bitIndex > 15)
-	{
-		print_log("Error: wrong bit index (%d) in HOST_COMMAND_SET_GPIO\r\n", bitIndex);
-		_reply[0] = p_cmd[0];
-		send_peer_message(_reply, 1);
-		return;
-	}
-	if(level > 1)
-	{
-		print_log("Error: wrong level (%d) in HOST_COMMAND_SET_GPIO\r\n", level);
-		_reply[0] = p_cmd[0];
-		send_peer_message(_reply, 1);
-		return;
-	}
-
-	uint16_t mode = _get_gpio_mode(pPort);
-	if((mode & (1 << bitIndex)) == 0)
-	{
-		print_log("Error: write read-only GPIO (%d) in HOST_COMMAND_SET_GPIO\r\n", bitIndex);
-		_reply[0] = p_cmd[0];
-		send_peer_message(_reply, 1);
-		return;
-	}
-
-	if(level == 0)
-	{
-		HAL_GPIO_WritePin(pPort, 1 << bitIndex, GPIO_PIN_RESET);
-	}
-	else
-	{
-		HAL_GPIO_WritePin(pPort, 1 << bitIndex, GPIO_PIN_SET);
-	}
-
-	_reply[0] = p_cmd[0];
-	_reply[1] = p_cmd[1];
-	_reply[2] = p_cmd[2];
-	_reply[3] = level;
-	send_peer_message(_reply, 4);
+	send_peer_message(_reply, length);
 }
 
 void on_host_command(const uint8_t * p_command, const uint16_t length)
