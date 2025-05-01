@@ -172,9 +172,10 @@ static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
 	uint8_t portCount = (length - 1) / 3;
 	for(uint8_t i=0; i<portCount; i++)
 	{
-		uint8_t portIndex = p_cmd[i*3+1];
-		uint8_t bitIndex = 	p_cmd[i*3+2];
-		uint8_t level = 	p_cmd[i*3+3];
+		uint8_t cmdByteIndex = i * 3 + 1;
+		uint8_t portIndex = p_cmd[cmdByteIndex];
+		uint8_t bitIndex = 	p_cmd[cmdByteIndex + 1];
+		uint8_t level = 	p_cmd[cmdByteIndex + 2];
 
 		GPIO_TypeDef * pPort = NULL;
 
@@ -253,9 +254,9 @@ static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
 			HAL_GPIO_WritePin(pPort, 1 << bitIndex, GPIO_PIN_SET);
 		}
 
-		_reply[i*3+1] = portIndex;
-		_reply[i*3+2] = bitIndex;
-		_reply[i*3+3] = level;
+		_reply[cmdByteIndex] = portIndex;
+		_reply[cmdByteIndex + 1] = bitIndex;
+		_reply[cmdByteIndex + 2] = level;
 	}
 
 	send_peer_message(_reply, length);
