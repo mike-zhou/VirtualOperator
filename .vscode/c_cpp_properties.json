@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/VirtualOperator/Core/Inc",
+                "${workspaceFolder}/VirtualOperator/Drivers/STM32H7xx_HAL_Driver/Inc",
+                "${workspaceFolder}/VirtualOperator/Drivers/STM32H7xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/VirtualOperator/Drivers/CMSIS/Device/ST/STM32H7xx/Include",
+                "${workspaceFolder}/VirtualOperator/Drivers/CMSIS/Include"
+            ],
+            "defines": [
+                "STM32H753xx",
+                "USE_HAL_DRIVER"
+            ],
+            "compilerPath": "/home/mikez/st/stm32cubeide_1.18.1/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.linux64_1.0.0.202410170706/tools/bin/arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-arm"
+        }
+    ],
+    "version": 4
+}
