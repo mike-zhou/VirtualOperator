@@ -171,20 +171,18 @@ int main(void)
 		  wrapper_get_timestamp_ms,
 		  on_host_command))
   {
-	  print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
+	    print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
   }
 
-
   /* Enable the TIM Update interrupt */
-  __HAL_TIM_ENABLE_IT(&htim17, TIM_IT_UPDATE);
-  HAL_StatusTypeDef rc = HAL_TIM_PWM_Start(&htim17, TIM_CHANNEL_1);
+  HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(&htim17);
   if(rc != HAL_OK)
   {
-	  print_log("Error: failed to start Timer 17 PWM\r\n");
+	    print_log("Error: failed to start Timer 17 overflow\r\n");
   }
   else
   {
-	  print_log("Timer 17 is started\r\n");
+	    print_log("Timer 17 is started\r\n");
   }
 
   /* USER CODE END 2 */
@@ -198,10 +196,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 poll_usart1();
-	 poll_usb_fs();
-	 poll_peer_exchange();
-	 poll_app();
+	  poll_usart1();
+	  poll_usb_fs();
+	  poll_peer_exchange();
+	  poll_app();
   }
   /* USER CODE END 3 */
 }
