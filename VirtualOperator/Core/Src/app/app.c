@@ -11,6 +11,17 @@
 #include "peer_exchange.h"
 #include "host_command.h"
 
+extern LPTIM_HandleTypeDef hlptim1;
+extern LPTIM_HandleTypeDef hlptim2;
+
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim5;
+extern TIM_HandleTypeDef htim8;
+
+
 static uint8_t _reply[PACKET_CONTENT_MAX_LENGTH];
 
 static void _on_version(const uint8_t * p_cmd, const uint16_t length)
@@ -262,6 +273,48 @@ static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, length);
 }
 
+static void _on_read_encoders(const uint8_t * p_cmd, const uint16_t length)
+{
+	uint16_t value;
+
+	_reply[0] = p_cmd[0];
+
+	// little endian
+	value = HAL_LPTIM_ReadCounter(&hlptim1);
+	_reply[1] = value & 0xff;
+	_reply[2] = (value >> 8) & 0xff;
+
+	value = HAL_LPTIM_ReadCounter(&hlptim2);
+	_reply[3] = value & 0xff;
+	_reply[4] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim1);
+	_reply[5] = value & 0xff;
+	_reply[6] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim2);
+	_reply[7] = value & 0xff;
+	_reply[8] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim3);
+	_reply[9] = value & 0xff;
+	_reply[10] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim4);
+	_reply[11] = value & 0xff;
+	_reply[12] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim5);
+	_reply[13] = value & 0xff;
+	_reply[14] = (value >> 8) & 0xff;
+
+	value = __HAL_TIM_GET_COUNTER(&htim8);
+	_reply[15] = value & 0xff;
+	_reply[16] = (value >> 8) & 0xff;
+
+	send_peer_message(_reply, 17);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -294,6 +347,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_SET_GPIO:
 		_on_set_gpio(p_command, length);
+		break;
+	case HOST_COMMAND_READ_ENCODERS:
+		_on_read_encoders(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);

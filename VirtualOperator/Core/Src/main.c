@@ -174,6 +174,54 @@ int main(void)
 	    print_log("Error: fail to initialize peer_exchange in %s\r\n", __FILE__);
   }
 
+  if(HAL_OK != HAL_LPTIM_Encoder_Start(&hlptim1, 0xFFFF)) {
+	  print_log("Error: failed to start LPTIM1 encoder\r\n");
+  } else {
+	  print_log("LPTIM1 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_LPTIM_Encoder_Start(&hlptim2, 0xFFFF)) {
+	  print_log("Error: failed to start LPTIM2 encoder\r\n");
+  } else {
+	  print_log("LPTIM2 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM1 encoder\r\n");
+  } else {
+	  print_log("TIM1 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM2 encoder\r\n");
+  } else {
+	  print_log("TIM2 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM3 encoder\r\n");
+  } else {
+	  print_log("TIM3 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim4, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM4 encoder\r\n");
+  } else {
+	  print_log("TIM4 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim5, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM5 encoder\r\n");
+  } else {
+	  print_log("TIM5 encoder is started\r\n");
+  }
+
+  if(HAL_OK != HAL_TIM_Encoder_Start(&htim8, TIM_CHANNEL_ALL)) {
+	  print_log("Error: failed to start TIM8 encoder\r\n");
+  } else {
+	  print_log("TIM8 encoder is started\r\n");
+  }
+
   /* Enable the TIM Update interrupt */
   HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(&htim17);
   if(rc != HAL_OK)
