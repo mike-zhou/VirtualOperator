@@ -94,9 +94,14 @@ static StepperData steppers[STEPPER_COUNT];
  * If stepIndex is what the slave expected, the slave needs to drive its
  * clock pin according to pulseState.
  */
-static bool on_master_stepper_index(StepperId slaveId, uint32_t stepIndex, PulseState pulseState)
+static bool on_master_step(StepperId slaveId, uint32_t stepIndex, PulseState pulseState)
 {
 
+}
+
+static uint16_t get_encoder(EncoderId encoderId)
+{
+    
 }
 
 void stepper_init_data_structure()
