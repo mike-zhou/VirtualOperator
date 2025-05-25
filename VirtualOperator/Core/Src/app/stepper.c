@@ -38,7 +38,7 @@ typedef enum _PulseState
     uint8_t gpioPinIndexForward;
     GPIO_TypeDef * pGpioPortClock;
     uint8_t gpioPinIndexClock;
-    uint32_t maxSteps;
+    uint32_t range;
     bool isStepperControlInitialized;
 
     // uint16_t data array
@@ -74,8 +74,7 @@ typedef enum _PulseState
 
     bool isEnabled;
     bool isForward;
-
-    uint32_t currentPosition;
+    uint32_t offset;
 
     uint32_t stepsToRun;
     uint32_t currentStep;

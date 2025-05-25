@@ -124,7 +124,8 @@ typedef enum
     STEPPER_STEPS_OUT_OF_RANGE,
     STEPPER_INVALID_PASSIVE_ID,
     STEPPER_INVALID_ENCODER_ID,
-    STEPPER_NULL_PARAMETER
+    STEPPER_NULL_PARAMETER,
+    STEPPER_NOT_SUPPORT_SYNC
 } StepperReturnCode;
 
 typedef enum 
@@ -137,7 +138,8 @@ typedef enum
     RUNNING_ACTIVE,
     RUNNING_PASSIVE,
     RUNNING_FORCED,
-    OUT_OF_BOUND,       // the stepper has touched its boundary
+    OUT_OF_SYNC,        
+    OUT_OF_BOUNDARY,    // boundary detector is triggered
     DRIVER_ALARM        // the stepper driver activates alarm signal
 } StepperState;
 
@@ -147,6 +149,7 @@ StepperReturnCode stepper_set_controls(
     StepperId _id,
     bool _isRisingEdgeDriven,
     bool _isForwardHigh,
+    bool _isEnableHigh,
     GPIO_TypeDef * _pGpioPortHomeBoundary,
     uint8_t _gpioPinIndexHomeBoundary,
     GPIO_TypeDef * _pGpioPortEndBoundary,
@@ -181,6 +184,11 @@ StepperReturnCode stepper_decouple_passive(StepperId activeStepperId, StepperId 
 StepperReturnCode stepper_run_force(StepperId id, uint16_t pulseWidth, uint8_t steps);
 
 StepperReturnCode stepper_get_state(StepperId id, StepperState * pState);
+
+/**
+ * check if stepper gets out of sync when it is NOT moving.
+ */
+StepperReturnCode stepper_check_sync(StepperId id, bool * pInSync);
 
 // interface with timer
 StepperReturnCode stepper_get_current_pulse_width(StepperId id, uint16_t * pPulseWidth);
