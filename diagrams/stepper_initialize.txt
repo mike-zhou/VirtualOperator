@@ -10,8 +10,9 @@ app -> stepper: stepper_init_data_structure
 loop each stepper
     app -> stepper: stepper_set_controls
 
+    note over app, stepper: set up pulses in the order of rampup, cruise, then rampdown
     loop
-        app -> stepper: stepper_set_master_cruise_pulse_width
+        app -> stepper: stepper_set_master_rampup_pulse_width
     end
     app -> stepper: stepper_set_master_cruise_pulse_width
     loop

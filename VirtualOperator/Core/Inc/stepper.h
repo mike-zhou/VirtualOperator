@@ -117,81 +117,114 @@ typedef enum
 {
     STEPPER_OK = 0,
     STEPPER_INVALID_ID,
+    STEPPER_INVALID_GPIO_PORT,
+    STEPPER_INVALID_GPIO_PIN_INDEX,
+    STEPPER_INVALID_RANGE,
+    STEPPER_INVALID_ENCODER_ID,
+    STEPPER_INVALID_CONTROL_PARAMETER,
+    STEPPER_INVALID_PASSIVE_ID,
+    STEPPER_NO_PULSE,
+    STEPPER_WRONG_BATCH_INDEX,
     STEPPER_WRONG_PULSE_WIDTH,
+    STEPPER_WRONG_PULSE_ORDER,
     STEPPER_TOO_MANY_PULSE_WIDTHS,
     STEPPER_TOO_MANY_PASSIVE_INDEXES,
     STEPPER_WRONG_STATE,
     STEPPER_STEPS_OUT_OF_RANGE,
-    STEPPER_INVALID_PASSIVE_ID,
-    STEPPER_INVALID_ENCODER_ID,
     STEPPER_NULL_PARAMETER,
     STEPPER_NOT_SUPPORT_SYNC
 } StepperReturnCode;
 
 typedef enum 
 {
-    UNINITIALIZED = 0,  // data about stepper hasn't been initialized
-    INITIALIZED,        // all data about stepper has been initialized
-    RETURN_TO_HOME,
-    HOME_TO_READY,
-    READY,              // the stepper is ready to be clocked
-    RUNNING_ACTIVE,
-    RUNNING_PASSIVE,
-    RUNNING_FORCED,
-    OUT_OF_SYNC,        
-    OUT_OF_BOUNDARY,    // boundary detector is triggered
-    DRIVER_ALARM        // the stepper driver activates alarm signal
+    STEPPER_UNINITIALIZED = 0,  // data about stepper hasn't been initialized
+    STEPPER_INITIALIZED,        // all data about stepper has been initialized
+    STEPPER_RETURN_TO_HOME,
+    STEPPER_HOME_TO_READY,
+    STEPPER_READY,              // the stepper is ready to be clocked
+    STEPPER_RUNNING_ACTIVE,
+    STEPPER_RUNNING_PASSIVE,
+    STEPPER_RUNNING_FORCED,
+    STEPPER_OUT_OF_SYNC,        
+    STEPPER_OUT_OF_BOUNDARY,    // boundary detector is triggered
+    STEPPER_DRIVER_ALARM,       // the stepper driver activates alarm signal
+    STEPPER_STATE_COUNT
 } StepperState;
 
 void stepper_init_data_structure();
 
 StepperReturnCode stepper_set_controls(
-    StepperId _id,
-    bool _isRisingEdgeDriven,
-    bool _isForwardHigh,
-    bool _isEnableHigh,
-    GPIO_TypeDef * _pGpioPortHomeBoundary,
-    uint8_t _gpioPinIndexHomeBoundary,
-    GPIO_TypeDef * _pGpioPortEndBoundary,
-    uint8_t _gpioPinIndexEndBoundary,
-    GPIO_TypeDef * _pGpioPortEnable,
-    uint8_t _gpioPinIndexEnable,
-    GPIO_TypeDef * _pGpioPortForward,
-    uint8_t _gpioPinIndexForward,
-    GPIO_TypeDef * _pGpioPortClock,
-    uint8_t _gpioPinIndexClock,
-    uint32_t _maxSteps,
-    uint16_t stepsPerREvolution,
-    EncoderId _encoderId,
-    uint16_t countsPerRevolution
+    const StepperId id,
+    const bool isRisingEdgeDriven,
+    const bool isForwardHigh,
+    const bool isEnableHigh,
+    const GPIO_TypeDef * pGpioPortHomeBoundary,
+    const uint8_t gpioPinIndexHomeBoundary,
+    const GPIO_TypeDef * pGpioPortEndBoundary,
+    const uint8_t gpioPinIndexEndBoundary,
+    const GPIO_TypeDef * pGpioPortEnable,
+    const uint8_t gpioPinIndexEnable,
+    const GPIO_TypeDef * pGpioPortForward,
+    const uint8_t gpioPinIndexForward,
+    const GPIO_TypeDef * pGpioPortClock,
+    const uint8_t gpioPinIndexClock,
+    const uint32_t range,
+    const uint16_t stepsPerRevolution,
+    const EncoderId encoderId,
+    const uint16_t countsPerRevolution
 );
 
-StepperReturnCode stepper_set_forward(StepperId id, bool isForward);
-StepperReturnCode stepper_set_enable(StepperId id, bool isEnable);
+StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);
+StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable);
 
-StepperReturnCode stepper_set_active_rampup_pulse_widths(StepperId id, uint16_t * pWidths, uint8_t count, uint8_t batchIndex, uint8_t totalBatches);
-StepperReturnCode stepper_set_active_cruise_pulse_width(StepperId id, uint16_t width);
-StepperReturnCode stepper_set_active_rampdown_pulse_widths(StepperId id, uint16_t * pWidths, uint8_t count, uint8_t batchIndex, uint8_t totalBatches);
-StepperReturnCode stepper_set_passive_step_indexes(StepperId id, uint16_t * pIndexes, uint8_t count, uint8_t batchIndex, uint8_t totalBatches);
+/**
+ * If there are several batches of pulses, then the pulse count in 
+ * each batch must be same except for the last batch.
+ * For example, if there are 5 batches, then pulse count could be
+ * 200, 200, 200, 200, 150.
+ */
+StepperReturnCode stepper_set_active_rampup_pulse_widths(
+    const StepperId id, 
+    const uint16_t * pWidths, 
+    const uint8_t count, 
+    const uint8_t batchIndex, 
+    const uint8_t totalBatches);
 
-StepperReturnCode stepper_start_home_positioning(StepperId id);
+StepperReturnCode stepper_set_active_cruise_pulse_width(
+    const StepperId id, const uint16_t width);
 
-StepperReturnCode stepper_run_active(StepperId id, uint32_t steps);
+StepperReturnCode stepper_set_active_rampdown_pulse_widths(
+    const StepperId id, 
+    const uint16_t * pWidths, 
+    const uint8_t count, 
+    const uint8_t batchIndex, 
+    const uint8_t totalBatches);
 
-StepperReturnCode stepper_couple_passive(StepperId activeStepperId, StepperId passiveStepperId);
-StepperReturnCode stepper_decouple_passive(StepperId activeStepperId, StepperId passiveStepperId);
+StepperReturnCode stepper_set_passive_step_indexes(
+    const StepperId id, 
+    const uint16_t * pIndexes, 
+    const uint8_t count, 
+    const uint8_t batchIndex, 
+    const uint8_t totalBatches);
 
-StepperReturnCode stepper_run_force(StepperId id, uint16_t pulseWidth, uint8_t steps);
+StepperReturnCode stepper_start_home_positioning(const StepperId id);
 
-StepperReturnCode stepper_get_state(StepperId id, StepperState * pState);
+StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps);
+
+StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
+StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
+
+StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps);
+
+StepperReturnCode stepper_get_state(const StepperId id, StepperState * pState);
 
 /**
  * check if stepper gets out of sync when it is NOT moving.
  */
-StepperReturnCode stepper_check_sync(StepperId id, bool * pInSync);
+StepperReturnCode stepper_check_sync(const StepperId id, bool * pInSync);
 
 // interface with timer
-StepperReturnCode stepper_get_current_pulse_width(StepperId id, uint16_t * pPulseWidth);
-StepperReturnCode on_stepper_pulse_end(StepperId id, uint16_t * pNextPulseWidth);
+StepperReturnCode stepper_get_current_pulse_width(const StepperId id, uint16_t * pPulseWidth);
+StepperReturnCode on_stepper_pulse_end(const StepperId id, uint16_t * pNextPulseWidth);
 
 #endif /* INC_STEPPER_H_ */
