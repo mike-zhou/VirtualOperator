@@ -8,16 +8,25 @@ participant encoder
 note over app, stepper: initialize steppers
 app -> stepper: stepper_init_data_structure
 loop each stepper
-    app -> stepper: stepper_set_controls
-
     note over app, stepper: set up pulses in the order of rampup, cruise, then rampdown
     loop
         app -> stepper: stepper_set_master_rampup_pulse_width
+        activate stepper
+            alt batchIndex == 0
+                stepper -> stepper: _reset_active_stepper_pulses
+            end
+        deactivate stepper
     end
     app -> stepper: stepper_set_master_cruise_pulse_width
     loop
         app -> stepper: stepper_set_master_rampdown_pulse_widths
     end
+
+    app -> stepper: stepper_set_controls
+    activate stepper
+        stepper -> stepper: _is_static_data_initialized
+        note over stepper: STEPPER_INITIALIZED
+    deactivate stepper
 end
 
 
@@ -26,9 +35,14 @@ app -> timer: timer_init_data_structure
 
 note across: stepper home positioning
 loop
-    app -> stepper: stepper_set_enable
 
     app -> stepper: stepper_start_home_positioning
+    activate stepper
+        stepper -> stepper: stepper_set_enable
+        stepper -> stepper: stepper_set_forward
+        note over stepper: STEPPER_RETURN_TO_HOME
+    deactivate stepper
+
     app -> stepper: stepper_get_current_pulse_width
     app -> timer: timer_start
 

@@ -130,6 +130,7 @@ typedef enum
     STEPPER_INTERNAL_DATA_ERROR,
     STEPPER_TOO_MANY_PULSE_WIDTHS,
     STEPPER_TOO_MANY_PASSIVE_INDEXES,
+    STEPPER_WRONG_INIT_ORDER,
     STEPPER_WRONG_STATE,
     STEPPER_STEPS_OUT_OF_RANGE,
     STEPPER_NULL_PARAMETER,
@@ -153,30 +154,6 @@ typedef enum
 } StepperState;
 
 void stepper_init_data_structure();
-
-StepperReturnCode stepper_set_controls(
-    const StepperId id,
-    const bool isRisingEdgeDriven,
-    const bool isForwardHigh,
-    const bool isEnableHigh,
-    const GPIO_TypeDef * pGpioPortHomeBoundary,
-    const uint8_t gpioPinIndexHomeBoundary,
-    const GPIO_TypeDef * pGpioPortEndBoundary,
-    const uint8_t gpioPinIndexEndBoundary,
-    const GPIO_TypeDef * pGpioPortEnable,
-    const uint8_t gpioPinIndexEnable,
-    const GPIO_TypeDef * pGpioPortForward,
-    const uint8_t gpioPinIndexForward,
-    const GPIO_TypeDef * pGpioPortClock,
-    const uint8_t gpioPinIndexClock,
-    const uint32_t range,
-    const uint16_t stepsPerRevolution,
-    const EncoderId encoderId,
-    const uint16_t countsPerRevolution
-);
-
-StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);
-StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable);
 
 /**
  * If there are several batches of pulses, then the pulse count in 
@@ -207,6 +184,30 @@ StepperReturnCode stepper_set_passive_step_indexes(
     const uint8_t count, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
+
+StepperReturnCode stepper_set_controls(
+    const StepperId id,
+    const bool isRisingEdgeDriven,
+    const bool isForwardHigh,
+    const bool isEnableHigh,
+    const GPIO_TypeDef * pGpioPortHomeBoundary,
+    const uint8_t gpioPinIndexHomeBoundary,
+    const GPIO_TypeDef * pGpioPortEndBoundary,
+    const uint8_t gpioPinIndexEndBoundary,
+    const GPIO_TypeDef * pGpioPortEnable,
+    const uint8_t gpioPinIndexEnable,
+    const GPIO_TypeDef * pGpioPortForward,
+    const uint8_t gpioPinIndexForward,
+    const GPIO_TypeDef * pGpioPortClock,
+    const uint8_t gpioPinIndexClock,
+    const uint32_t range,
+    const uint16_t stepsPerRevolution,
+    const EncoderId encoderId,
+    const uint16_t countsPerRevolution
+);
+
+StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);
+StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable);
 
 StepperReturnCode stepper_start_home_positioning(const StepperId id);
 

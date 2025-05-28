@@ -6,6 +6,7 @@
  */
 
 #include "stepper.h"
+#include "usart1.h"
 
 #include "stm32h7xx_hal.h"
 
@@ -86,7 +87,7 @@ typedef enum _PulseState
 
     PulseState pulseState;
 
-    StepperId passiveIds[STEPPER_COUNT];
+    StepperId passiveStepperIds[STEPPER_COUNT];
     bool passiveCoupled;
 } StepperData;
 
@@ -103,7 +104,7 @@ static bool _on_master_step(StepperId slaveId, uint32_t stepIndex, PulseState pu
 
 }
 
-static uint16_t _get_encoder(EncoderId encoderId)
+static uint16_t _get_encoder_count(EncoderId encoderId)
 {
     
 }
@@ -117,7 +118,7 @@ static uint16_t _is_static_data_initialized(StepperId id)
         return false;
     }
     
-    if(pStepper->isRampupPuleseWidthsPopulated)
+    if(pStepper->isPassiveStepsInitialized)
     {
         return true;
     }
@@ -154,7 +155,7 @@ void stepper_init_data_structure()
         pStepper->pulseState = FIRST_HALF;
         for(uint8_t passiveIndex=0; passiveIndex<STEPPER_COUNT; passiveIndex++)
         {
-            pStepper->passiveIds[passiveIndex] = STEPPER_INVALID_ID;
+            pStepper->passiveStepperIds[passiveIndex] = STEPPER_INVALID_ID;
         }
         pStepper->passiveCoupled = false;
     }
@@ -243,14 +244,11 @@ StepperReturnCode stepper_set_controls(
     pStepper->countsPerRevolution = countsPerRevolution;
     pStepper->isStepperControlInitialized = true;
 
-    if(_is_static_data_initialized(id))
+    if(!_is_static_data_initialized(id))
     {
-        pStepper->state = STEPPER_INITIALIZED;
+        return STEPPER_WRONG_INIT_ORDER;
     }
-    else
-    {
-        pStepper->state = STEPPER_UNINITIALIZED;
-    }
+    pStepper->state = STEPPER_INITIALIZED;
 
     return STEPPER_OK;
 }
@@ -641,4 +639,41 @@ StepperReturnCode stepper_set_passive_step_indexes(
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_start_home_positioning(const StepperId id)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
 
+    StepperData * pStepper = _steppers + (int)id;
+
+    if(pStepper->state != STEPPER_INITIALIZED)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(!pStepper->isRampupPuleseWidthsPopulated)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+
+    StepperReturnCode rc;
+
+    rc = stepper_set_enable(id, true);
+    if(STEPPER_OK != rc)
+    {
+        print_log("Error: stepper_start_home_positioning: failed to enable stepper %d, return code: %d\r\n", id, rc);
+        return rc;
+    }
+    rc = stepper_set_forward(id, false);
+    if(STEPPER_OK != rc)
+    {
+        print_log("Error: stepper_start_home_positioning: failed to reverse stepper %d, return code: %d\r\n", id, rc);
+        return rc;
+    }
+
+    pStepper->currentStep = 0;
+    pStepper->state = STEPPER_RETURN_TO_HOME;
+
+    return STEPPER_OK;
+}
