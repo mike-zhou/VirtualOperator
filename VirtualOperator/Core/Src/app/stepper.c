@@ -41,8 +41,9 @@ typedef enum _PulseState
     uint8_t gpioPinIndexForward;
     GPIO_TypeDef * pGpioPortClock;
     uint8_t gpioPinIndexClock;
+    uint16_t readySteps; 
     uint32_t range;
-    uint16_t stepsPerREvolution;
+    uint16_t stepsPerRevolution;
     EncoderId encoderId;
     uint16_t countsPerRevolution;
     bool isStepperControlInitialized;
@@ -176,6 +177,7 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexForward,
     const GPIO_TypeDef * pGpioPortClock,
     const uint8_t gpioPinIndexClock,
+    const uint16_t readySteps,
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
@@ -204,6 +206,10 @@ StepperReturnCode stepper_set_controls(
         return STEPPER_INVALID_GPIO_PIN_INDEX;
     }
 
+    if(readySteps == 0)
+    {
+        return STEPPER_INVALID_READY_STEPS;
+    }
     if(range == 0)
     {
         return STEPPER_INVALID_RANGE;
@@ -238,8 +244,9 @@ StepperReturnCode stepper_set_controls(
     pStepper->gpioPinIndexForward = gpioPinIndexForward;
     pStepper->pGpioPortClock = pGpioPortClock;
     pStepper->gpioPinIndexClock = gpioPinIndexClock;
+    pStepper->readySteps = readySteps;
     pStepper->range = range;
-    pStepper->stepsPerREvolution = stepsPerRevolution;
+    pStepper->stepsPerRevolution = stepsPerRevolution;
     pStepper->encoderId = encoderId;
     pStepper->countsPerRevolution = countsPerRevolution;
     pStepper->isStepperControlInitialized = true;
@@ -266,6 +273,21 @@ StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
         pStepper->state != STEPPER_READY)
     {
         return STEPPER_WRONG_STATE;
+    }
+
+    if(isForward)
+    {
+        if(pStepper->offset + pStepper->stepsToRun > pStepper->range)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
+    }
+    else
+    {
+        if(pStepper->offset < pStepper->stepsToRun)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
     }
 
     GPIO_PinState pinState;
@@ -677,3 +699,47 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
 
     return STEPPER_OK;
 }
+
+StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    if(pStepper->state != STEPPER_READY)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(!pStepper->isRampupPuleseWidthsPopulated ||
+        !pStepper->isCruisePulseWidthPopulated ||
+        !pStepper->isRampdownPulseWidthsPopulated)
+    {
+        return STEPPER_INVALID_ACTIVE_PULSES;
+    }
+    if(pStepper->isForward)
+    {
+        if(pStepper->offset + steps > pStepper->range)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
+    }
+    else
+    {
+        if(pStepper->offset < steps)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
+    }
+
+    pStepper->stepsToRun = steps;
+    pStepper->currentStep = 0;
+    pStepper->pulseState = FIRST_HALF;
+
+    pStepper->state = STEPPER_RUNNING_ACTIVE;
+
+    return STEPPER_OK;
+}
+

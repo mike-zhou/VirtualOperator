@@ -119,6 +119,7 @@ typedef enum
     STEPPER_INVALID_ID,
     STEPPER_INVALID_GPIO_PORT,
     STEPPER_INVALID_GPIO_PIN_INDEX,
+    STEPPER_INVALID_READY_STEPS,
     STEPPER_INVALID_RANGE,
     STEPPER_INVALID_ENCODER_ID,
     STEPPER_INVALID_CONTROL_PARAMETER,
@@ -132,7 +133,9 @@ typedef enum
     STEPPER_TOO_MANY_PASSIVE_INDEXES,
     STEPPER_WRONG_INIT_ORDER,
     STEPPER_WRONG_STATE,
-    STEPPER_STEPS_OUT_OF_RANGE,
+    STEPPER_INVALID_ACTIVE_PULSES,
+    STEPPER_INVALID_PASSIVE_INDEXES,
+    STEPPER_WILL_OUT_OF_RANGE,
     STEPPER_NULL_PARAMETER,
     STEPPER_NOT_SUPPORT_SYNC
 } StepperReturnCode;
@@ -200,6 +203,7 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexForward,
     const GPIO_TypeDef * pGpioPortClock,
     const uint8_t gpioPinIndexClock,
+    const uint16_t readySteps,
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
