@@ -331,7 +331,7 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
     return STEPPER_OK;
 }
 
-static void _reset_active_stepper_pulses(StepperId id)
+static void _reset_active_stepper_pulses(const StepperId id)
 {
     StepperData * pStepper = _steppers + (int)id;
 
@@ -405,7 +405,10 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
     {
         return STEPPER_WRONG_BATCH_INDEX;
     }
-
+    if(pStepper->pRampdownPulseWidths == NULL)
+    {
+        return STEPPER_INTERNAL_DATA_ERROR;
+    }
     if((pStepper->rampupPulses + count) > MAX_RAMP_CLOCKS)
     {
         return STEPPER_TOO_MANY_PULSE_WIDTHS;
@@ -518,7 +521,10 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
     {
         return STEPPER_WRONG_BATCH_INDEX;
     }
-
+    if(pStepper->pRampdownPulseWidths == NULL)
+    {
+        return STEPPER_INTERNAL_DATA_ERROR;
+    }
     if((pStepper->rampdownPulses + count) > MAX_RAMP_CLOCKS)
     {
         return STEPPER_TOO_MANY_PULSE_WIDTHS;
@@ -536,6 +542,103 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
     }
 
     return STEPPER_OK;
-
 }
+
+static void _reset_passive_stepper_pulses(const StepperId id)
+{
+    StepperData * pStepper = _steppers + (int)id;
+
+    pStepper->pRampdownPulseWidths = NULL;
+    pStepper->rampupPulses = 0;
+    pStepper->isRampupPuleseWidthsPopulated = false;
+
+    pStepper->isCruisePulseWidthPopulated = false;
+
+    pStepper->pRampdownPulseWidths = NULL;
+    pStepper->rampdownPulses = 0;
+    pStepper->isRampdownPulseWidthsPopulated = false;
+
+    pStepper->pPassiveStepArray = pStepper->uint16Array;
+    pStepper->passiveStepsCount = 0;
+    pStepper->passiveStepIndex = 0;
+    pStepper->isPassiveStepsInitialized = false;
+}
+
+StepperReturnCode stepper_set_passive_step_indexes(
+    const StepperId id, 
+    const uint16_t * pIndexes, 
+    const uint8_t count, 
+    const uint8_t batchIndex, 
+    const uint8_t totalBatches)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(pIndexes == NULL)
+    {
+        return STEPPER_NULL_PARAMETER;
+    }
+    if(count < 1)
+    {
+        return STEPPER_NO_PULSE;
+    }
+    if(totalBatches < 1)
+    {
+        return STEPPER_NO_PULSE;
+    }
+    const uint8_t lastBatchIndex = totalBatches - 1;
+
+    if(batchIndex > lastBatchIndex)
+    {
+        return STEPPER_WRONG_BATCH_INDEX;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    switch(pStepper->state)
+    {
+        case STEPPER_RETURN_TO_HOME:
+        case STEPPER_HOME_TO_READY:
+        case STEPPER_RUNNING_ACTIVE:
+        case STEPPER_RUNNING_PASSIVE:
+        case STEPPER_RUNNING_FORCED:
+            // cannot set pulses while stepper is moving
+            return STEPPER_WRONG_STATE; 
+        default:
+            break;
+    }
+
+    if(batchIndex == 0)
+    {
+        _reset_passive_stepper_pulses(id);
+    }
+
+    if(pStepper->pPassiveStepArray == NULL)
+    {
+        return STEPPER_INTERNAL_DATA_ERROR;
+    }
+    if(pStepper->passiveStepsCount != count * batchIndex)
+    {
+        return STEPPER_WRONG_BATCH_INDEX;
+    }
+    if(pStepper->passiveStepsCount + count > MAX_UINT16_ARRAY_LENGTH)
+    {
+        return STEPPER_TOO_MANY_PASSIVE_INDEXES;
+    }
+
+    for(uint8_t i=0; i<count; i++)
+    {
+        pStepper->pPassiveStepArray[pStepper->passiveStepsCount + i] = pIndexes[i];
+    }
+    pStepper->passiveStepsCount += count;
+
+    if(batchIndex == lastBatchIndex)
+    {
+        pStepper->isPassiveStepsInitialized = true;
+    }
+
+    return STEPPER_OK;
+}
+
 
