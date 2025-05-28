@@ -743,3 +743,68 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const StepperId passiveStepperId)
+{
+    if(activeStepperId >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(passiveStepperId >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(activeStepperId == passiveStepperId)
+    {
+        return STEPPER_INVALID_ID;
+    }
+
+    StepperData * pActive = _steppers + (int)activeStepperId;
+    StepperData * pPassive = _steppers + (int)passiveStepperId;
+
+    if(pActive->state != STEPPER_RUNNING_ACTIVE)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(pPassive->state != STEPPER_READY)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(pPassive->isPassiveStepsInitialized == false)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+
+    // check if passive stepper has been coupled with any stepper
+    bool coupled = false;
+    for(int i = 0; i < (int)STEPPER_COUNT; i++)
+    {
+        StepperData * pStepper = _steppers + i;
+        if(pStepper->passiveCoupled)
+        {
+            for(int j = 0; j < (int)STEPPER_COUNT; j++)
+            {
+                if(pStepper->passiveStepperIds[j] == passiveStepperId)
+                {
+                    coupled = true;
+                    break;
+                }
+            }
+        }
+        if(coupled)
+        {
+            break;
+        }
+    }
+    if(coupled)
+    {
+        return SETPPER_ALREADY_COUPLED;
+    }
+
+    pActive->passiveStepperIds[passiveStepperId] = passiveStepperId;
+    pActive->passiveCoupled = true;
+
+    pPassive->state = STEPPER_RUNNING_PASSIVE;
+
+    return STEPPER_OK;
+}
+
