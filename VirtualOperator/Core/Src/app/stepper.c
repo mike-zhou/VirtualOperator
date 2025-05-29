@@ -822,3 +822,52 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, const StepperId passiveStepperId)
+{
+    if(activeStepperId >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(passiveStepperId >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(activeStepperId == passiveStepperId)
+    {
+        return STEPPER_INVALID_ID;
+    }
+
+    StepperData * pActive = _steppers + (int)activeStepperId;
+    StepperData * pPassive = _steppers + (int)passiveStepperId;
+
+    if(pActive->state != STEPPER_READY)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(pPassive->state != STEPPER_READY)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(!pActive->passiveCoupled)
+    {
+        return STEPPER_NOT_COUPLED;
+    }
+
+    bool found = false;
+    for(int i=0; i < (int)STEPPER_COUNT; i++)
+    {
+        if(pActive->passiveStepperIds[i] == passiveStepperId)
+        {
+            found = true;
+            pActive->passiveStepperIds[i] = ENCODER_INVALID_ID;
+        }
+    }
+    if(!found)
+    {
+        return STEPPER_NOT_COUPLED;
+    }
+
+    return STEPPER_OK;
+}
+
+
