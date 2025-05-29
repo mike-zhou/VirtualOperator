@@ -1,0 +1,38 @@
+@startuml
+
+participant app
+participant stepper_1
+participant stepper_2
+participant timer
+participant encoder_x
+participant encoder_y
+
+
+== run active ==
+
+note over stepper_1 #pink: STEPPER_READY
+
+app -> stepper_1: stepper_set_forward
+app -> stepper_1: stepper_run_active
+
+note over stepper_1 #pink: STEPPER_RUNNING_ACTIVE
+
+app -> stepper_1: stepper_get_current_pulse_width
+app -> timer: timer_start
+loop stepsToRun
+    timer -> stepper_1: on_stepper_pulse_end
+    activate stepper_1
+        alt out of sync
+            stepper_1 -> app: on_stepper_out_of_sync_interrupt
+        else out of boundary
+            stepper_1 -> app: on_stepper_out_of_scope_interrupt
+        end
+    deactivate stepper_1
+    alt next pulse width > 0
+        timer -> timer: update_overflow_threshold
+    end
+end
+
+note over stepper_1 #pink: STEPPER_READY
+
+@enduml

@@ -145,8 +145,8 @@ typedef enum
 {
     STEPPER_UNINITIALIZED = 0,  // data about stepper hasn't been initialized
     STEPPER_INITIALIZED,        // all data about stepper has been initialized
-    STEPPER_RETURN_TO_HOME,
-    STEPPER_HOME_TO_READY,
+    STEPPER_RETURN_TO_HOME_BOUNDARY,
+    STEPPER_HOME_BOUNDARY_TO_READY,
     STEPPER_READY,              // the stepper is ready to be clocked
     STEPPER_RUNNING_ACTIVE,
     STEPPER_RUNNING_PASSIVE,
@@ -204,7 +204,7 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexForward,
     const GPIO_TypeDef * pGpioPortClock,
     const uint8_t gpioPinIndexClock,
-    const uint16_t readySteps,
+    const uint16_t homeBoundaryToReadySteps,
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,

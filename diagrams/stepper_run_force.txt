@@ -1,0 +1,40 @@
+@startuml
+
+participant app
+participant stepper
+participant timer
+
+note over stepper #pink: STEPPER_UNINITIALIZED
+loop
+    app -> stepper: stepper_set_master_rampup_pulse_width
+    activate stepper
+        alt batchIndex == 0
+            stepper -> stepper: _reset_active_stepper_pulses
+        end
+    deactivate stepper
+end
+app -> stepper: stepper_set_master_cruise_pulse_width
+loop
+    app -> stepper: stepper_set_master_rampdown_pulse_widths
+end
+note over stepper #pink: STEPPER_UNINITIALIZED
+app -> stepper: stepper_set_controls
+note over stepper #pink: STEPPER_INITIALIZED
+
+app -> stepper: stepper_set_enable
+app -> stepper: stepper_set_forward
+app -> stepper: stepper_run_force
+note over stepper #pink: STEPPER_RUNNING_FORCED
+
+app -> stepper: stepper_get_current_pulse_width
+app -> timer: timer_start
+loop
+    timer -> stepper: on_stepper_pulse_end
+    alt next pulse width > 0
+        timer -> timer: update_overflow_threshold
+    end
+end
+
+note over stepper #pink: STEPPER_INITIALIZED
+
+@enduml

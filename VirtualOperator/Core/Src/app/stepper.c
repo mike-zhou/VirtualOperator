@@ -41,7 +41,7 @@ typedef enum _PulseState
     uint8_t gpioPinIndexForward;
     GPIO_TypeDef * pGpioPortClock;
     uint8_t gpioPinIndexClock;
-    uint16_t readySteps; 
+    uint16_t homeBoundaryToReadySteps; 
     uint32_t range;
     uint16_t stepsPerRevolution;
     EncoderId encoderId;
@@ -177,7 +177,7 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexForward,
     const GPIO_TypeDef * pGpioPortClock,
     const uint8_t gpioPinIndexClock,
-    const uint16_t readySteps,
+    const uint16_t homeBoundaryToReadySteps,
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
@@ -206,7 +206,7 @@ StepperReturnCode stepper_set_controls(
         return STEPPER_INVALID_GPIO_PIN_INDEX;
     }
 
-    if(readySteps == 0)
+    if(homeBoundaryToReadySteps == 0)
     {
         return STEPPER_INVALID_READY_STEPS;
     }
@@ -244,7 +244,7 @@ StepperReturnCode stepper_set_controls(
     pStepper->gpioPinIndexForward = gpioPinIndexForward;
     pStepper->pGpioPortClock = pGpioPortClock;
     pStepper->gpioPinIndexClock = gpioPinIndexClock;
-    pStepper->readySteps = readySteps;
+    pStepper->homeBoundaryToReadySteps = homeBoundaryToReadySteps;
     pStepper->range = range;
     pStepper->stepsPerRevolution = stepsPerRevolution;
     pStepper->encoderId = encoderId;
@@ -405,8 +405,8 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
 
     switch(pStepper->state)
     {
-        case STEPPER_RETURN_TO_HOME:
-        case STEPPER_HOME_TO_READY:
+        case STEPPER_RETURN_TO_HOME_BOUNDARY:
+        case STEPPER_HOME_BOUNDARY_TO_READY:
         case STEPPER_RUNNING_ACTIVE:
         case STEPPER_RUNNING_PASSIVE:
         case STEPPER_RUNNING_FORCED:
@@ -464,8 +464,8 @@ StepperReturnCode stepper_set_active_cruise_pulse_width(
 
     switch(pStepper->state)
     {
-        case STEPPER_RETURN_TO_HOME:
-        case STEPPER_HOME_TO_READY:
+        case STEPPER_RETURN_TO_HOME_BOUNDARY:
+        case STEPPER_HOME_BOUNDARY_TO_READY:
         case STEPPER_RUNNING_ACTIVE:
         case STEPPER_RUNNING_PASSIVE:
         case STEPPER_RUNNING_FORCED:
@@ -520,8 +520,8 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
 
     switch(pStepper->state)
     {
-        case STEPPER_RETURN_TO_HOME:
-        case STEPPER_HOME_TO_READY:
+        case STEPPER_RETURN_TO_HOME_BOUNDARY:
+        case STEPPER_HOME_BOUNDARY_TO_READY:
         case STEPPER_RUNNING_ACTIVE:
         case STEPPER_RUNNING_PASSIVE:
         case STEPPER_RUNNING_FORCED:
@@ -618,8 +618,8 @@ StepperReturnCode stepper_set_passive_step_indexes(
 
     switch(pStepper->state)
     {
-        case STEPPER_RETURN_TO_HOME:
-        case STEPPER_HOME_TO_READY:
+        case STEPPER_RETURN_TO_HOME_BOUNDARY:
+        case STEPPER_HOME_BOUNDARY_TO_READY:
         case STEPPER_RUNNING_ACTIVE:
         case STEPPER_RUNNING_PASSIVE:
         case STEPPER_RUNNING_FORCED:
@@ -645,6 +645,20 @@ StepperReturnCode stepper_set_passive_step_indexes(
     if(pStepper->passiveStepsCount + count > MAX_UINT16_ARRAY_LENGTH)
     {
         return STEPPER_TOO_MANY_PASSIVE_INDEXES;
+    }
+    if(pStepper->isForward)
+    {
+        if(pStepper->offset + pStepper->passiveStepsCount + count > pStepper->range)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
+    }
+    else
+    {
+        if(pStepper->passiveStepsCount + count > pStepper->offset)
+        {
+            return STEPPER_WILL_OUT_OF_RANGE;
+        }
     }
 
     for(uint8_t i=0; i<count; i++)
@@ -695,7 +709,7 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
     }
 
     pStepper->currentStep = 0;
-    pStepper->state = STEPPER_RETURN_TO_HOME;
+    pStepper->state = STEPPER_RETURN_TO_HOME_BOUNDARY;
 
     return STEPPER_OK;
 }

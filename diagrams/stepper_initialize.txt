@@ -7,6 +7,8 @@ participant encoder
 
 note over app, stepper: initialize steppers
 app -> stepper: stepper_init_data_structure
+note over stepper #pink: STEPPER_UNINITIALIZED
+
 loop each stepper
     note over app, stepper: set up pulses in the order of rampup, cruise, then rampdown
     loop
@@ -22,11 +24,13 @@ loop each stepper
         app -> stepper: stepper_set_master_rampdown_pulse_widths
     end
 
+    note over stepper #pink: STEPPER_UNINITIALIZED
+
     app -> stepper: stepper_set_controls
     activate stepper
         stepper -> stepper: _is_static_data_initialized
-        note over stepper: STEPPER_INITIALIZED
     deactivate stepper
+    note over stepper #pink: STEPPER_INITIALIZED
 end
 
 
@@ -40,19 +44,28 @@ loop
     activate stepper
         stepper -> stepper: stepper_set_enable
         stepper -> stepper: stepper_set_forward
-        note over stepper: STEPPER_RETURN_TO_HOME
+        note over stepper #pink: STEPPER_RETURN_TO_HOME_BOUNDARY
     deactivate stepper
 
     app -> stepper: stepper_get_current_pulse_width
     app -> timer: timer_start
 
-    loop
+    loop till home boundary
         timer -> stepper: on_stepper_pulse_end
-        alt HOME
-            stepper -> encoder: get_encoder
-        end
     end
 
+    note over stepper #pink: STEPPER_HOME_BOUNDARY_TO_READY
+
+    loop homeBoundaryToReadySteps
+        timer -> stepper: on_stepper_pulse_end
+    end
+
+    alt encoder
+        stepper -> encoder: _get_encoder_count
+    end
+
+    note over stepper #pink: STEPPER_READY
+    
     app -> stepper: stepper_get_state
 end
 
