@@ -88,6 +88,8 @@ typedef enum _PulseState
 
     PulseState pulseState;
 
+    uint16_t forcePulseWidth;
+    
     StepperId passiveStepperIds[STEPPER_COUNT];
     bool passiveCoupled;
 } StepperData;
@@ -154,6 +156,7 @@ void stepper_init_data_structure()
         pStepper->stepsToRun = 0;
         pStepper->currentStep = 0;
         pStepper->pulseState = FIRST_HALF;
+        pStepper->forcePulseWidth = 0xFFFF;
         for(uint8_t passiveIndex=0; passiveIndex<STEPPER_COUNT; passiveIndex++)
         {
             pStepper->passiveStepperIds[passiveIndex] = STEPPER_INVALID_ID;
@@ -866,6 +869,28 @@ StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, cons
     {
         return STEPPER_NOT_COUPLED;
     }
+
+    return STEPPER_OK;
+}
+
+StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    if(pStepper->state != STEPPER_INITIALIZED)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+
+    pStepper->forcePulseWidth = pulseWidth;
+    pStepper->stepsToRun = steps;
+    pStepper->currentStep = 0;
+    pStepper->state = STEPPER_RUNNING_FORCED;
 
     return STEPPER_OK;
 }
