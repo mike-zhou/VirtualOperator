@@ -14,6 +14,14 @@
 #define MAX_UINT16_ARRAY_LENGTH 4096
 #define MAX_RAMP_CLOCKS (MAX_UINT16_ARRAY_LENGTH >> 1)
 
+extern LPTIM_HandleTypeDef hlptim1;
+extern LPTIM_HandleTypeDef hlptim2;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim3;
+extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim5;
+extern TIM_HandleTypeDef htim8;
 
 typedef enum _PulseState
 {
@@ -26,7 +34,6 @@ typedef enum _PulseState
     /**
      * static data
      */
-
     // stepper controls
     bool isRisingEdgeDriven;
     bool isForwardHigh;
@@ -46,6 +53,7 @@ typedef enum _PulseState
     uint16_t stepsPerRevolution;
     EncoderId encoderId;
     uint16_t countsPerRevolution;
+    uint16_t maxPositionError;
     bool isStepperControlInitialized;
 
     // uint16_t data array
@@ -83,6 +91,9 @@ typedef enum _PulseState
     bool isForward;
     uint32_t offset;
 
+    int32_t actualPosition;
+    uint16_t encoderCount;
+
     uint32_t stepsToRun;
     uint32_t currentStep;
 
@@ -105,11 +116,6 @@ static StepperData _steppers[STEPPER_COUNT];
 static bool _on_master_step(StepperId slaveId, uint32_t stepIndex, PulseState pulseState)
 {
 
-}
-
-static uint16_t _get_encoder_count(EncoderId encoderId)
-{
-    
 }
 
 static uint16_t _is_static_data_initialized(StepperId id)
@@ -153,6 +159,8 @@ void stepper_init_data_structure()
         pStepper->state = STEPPER_UNINITIALIZED;
         pStepper->isEnabled = false;
         pStepper->offset = 0;
+        pStepper->actualPosition = 0;
+        pStepper->encoderCount = 0;
         pStepper->stepsToRun = 0;
         pStepper->currentStep = 0;
         pStepper->pulseState = FIRST_HALF;
@@ -184,13 +192,13 @@ StepperReturnCode stepper_set_controls(
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
-    const uint16_t countsPerRevolution)
+    const uint16_t countsPerRevolution,
+    const uint16_t maxPositionError)
 {
     if(id >= STEPPER_COUNT)
     {
         return STEPPER_INVALID_ID;
     }
-
     if(pGpioPortHomeBoundary == NULL ||
         pGpioPortEndBoundary == NULL ||
         pGpioPortEnable == NULL ||
@@ -199,7 +207,6 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_INVALID_GPIO_PORT;
     }
-
     if(gpioPinIndexHomeBoundary > 15 ||
         gpioPinIndexEndBoundary > 15 ||
         gpioPinIndexEnable > 15 ||
@@ -208,7 +215,6 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_INVALID_GPIO_PIN_INDEX;
     }
-
     if(homeBoundaryToReadySteps == 0)
     {
         return STEPPER_INVALID_READY_STEPS;
@@ -217,13 +223,15 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_INVALID_RANGE;
     }
-
     if(encoderId >= ENCODER_COUNT && encoderId != ENCODER_INVALID_ID)
     {
         return STEPPER_INVALID_ENCODER_ID;
     }
-    
     if(stepsPerRevolution == 0 || countsPerRevolution == 0)
+    {
+        return STEPPER_INVALID_CONTROL_PARAMETER;
+    }
+    if(maxPositionError < 1)
     {
         return STEPPER_INVALID_CONTROL_PARAMETER;
     }
@@ -252,6 +260,7 @@ StepperReturnCode stepper_set_controls(
     pStepper->stepsPerRevolution = stepsPerRevolution;
     pStepper->encoderId = encoderId;
     pStepper->countsPerRevolution = countsPerRevolution;
+    pStepper->maxPositionError = maxPositionError;
     pStepper->isStepperControlInitialized = true;
 
     if(!_is_static_data_initialized(id))
@@ -916,3 +925,133 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
 
     return STEPPER_OK;
 }
+
+static uint16_t _get_encoder_count(const EncoderId encoderId)
+{
+    uint16_t value = 0;
+
+    switch(encoderId)
+    {
+        case ENCODER_0:
+            value = HAL_LPTIM_ReadCounter(&hlptim1);
+            break;
+
+        case ENCODER_1:
+            value = HAL_LPTIM_ReadCounter(&hlptim2);
+            break;
+
+        case ENCODER_2:
+            value = __HAL_TIM_GET_COUNTER(&htim1);
+            break;
+
+        case ENCODER_3:
+            value = __HAL_TIM_GET_COUNTER(&htim2);
+            break;
+
+        case ENCODER_4:
+            value = __HAL_TIM_GET_COUNTER(&htim3);
+            break;
+
+        case ENCODER_5:
+            value = __HAL_TIM_GET_COUNTER(&htim4);  
+            break;
+
+        case ENCODER_6:
+            value = __HAL_TIM_GET_COUNTER(&htim5);
+            break;
+
+        case ENCODER_7:
+            value = __HAL_TIM_GET_COUNTER(&htim8);
+            break;
+
+        default:
+            break;
+    }
+
+    return value;
+}
+
+static void _update_stepper_position(StepperData * const pStepper)
+{
+    const uint16_t curr = _get_encoder_count(pStepper->encoderId);
+    const uint16_t prev = pStepper->encoderCount;
+
+    // this function is called in high frequency, so the difference between
+    // curr and prev should not be too large.
+    // forword:
+    //   case 0:   0x0 -------------------prev-----curr------------------------- 0xFFFF
+    //   case 1:   0x0 --curr-------------------------------------------prev---- 0xFFFF
+    // backword:
+    //   case 2:   0x0 ----------------------------curr-----------prev---------- 0xFFFF
+    //   case 3:   0x0 ----prev-----------------------------------------curr---- 0xFFFF
+
+    if(curr > prev)
+    {
+        uint16_t delta = curr - prev;
+        if(delta < 0x7FFF)
+        {
+            pStepper->actualPosition += delta; // case 0
+        }
+        else
+        {
+            pStepper->actualPosition -= 0x10000 - delta; // case 3
+        }
+    }
+    else
+    {
+        uint16_t delta = prev - curr;
+        if(delta < 0x7FFF)
+        {
+            pStepper->actualPosition -= delta; // case 2
+        }
+        else
+        {
+            pStepper->actualPosition += 0x10000 - delta; // case 1
+        }
+    }
+
+    pStepper->encoderCount = curr;
+}
+
+static bool _is_stepper_in_sync(const StepperData * const pStepper)
+{
+    // expectedPosition = offset * (countsPerRevolution / stepsPerRevolution)
+    int64_t expectedPosition = pStepper->offset;
+    expectedPosition *= pStepper->countsPerRevolution;
+    expectedPosition /= pStepper->stepsPerRevolution;
+
+    if(pStepper->actualPosition >= (expectedPosition - pStepper->maxPositionError) &&
+        pStepper->actualPosition <= (expectedPosition + pStepper->maxPositionError))
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    if(pStepper->state != STEPPER_READY)
+    {
+        return STEPPER_WRONG_STATE;
+    }
+    if(pStepper->encoderId == ENCODER_INVALID_ID)
+    {
+        return STEPPER_INVALID_ENCODER_ID;
+    }
+
+    _update_stepper_position(pStepper);
+    *pInSync = _is_stepper_in_sync(pStepper);
+
+    return STEPPER_OK;
+}
+

@@ -209,7 +209,8 @@ StepperReturnCode stepper_set_controls(
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
-    const uint16_t countsPerRevolution
+    const uint16_t countsPerRevolution,
+    const uint16_t maxPositionError
 );
 
 StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);
@@ -229,10 +230,10 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
 /**
  * check if stepper gets out of sync when it is NOT moving.
  */
-StepperReturnCode stepper_check_sync(const StepperId id, bool * pInSync);
+StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
 
 // interface with timer
-StepperReturnCode stepper_get_current_pulse_width(const StepperId id, uint16_t * pPulseWidth);
-StepperReturnCode on_stepper_pulse_end(const StepperId id, uint16_t * pNextPulseWidth);
+StepperReturnCode stepper_get_current_pulse_width(const StepperId id, uint16_t * const pPulseWidth);
+StepperReturnCode on_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
 
 #endif /* INC_STEPPER_H_ */
