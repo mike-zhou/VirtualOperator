@@ -224,7 +224,7 @@ StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, cons
 
 StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps);
 
-StepperReturnCode stepper_get_state(const StepperId id, StepperState * pState);
+StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pState);
 
 /**
  * check if stepper gets out of sync when it is NOT moving.

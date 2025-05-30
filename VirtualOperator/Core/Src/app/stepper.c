@@ -330,6 +330,10 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
     {
         return STEPPER_WRONG_STATE;
     }
+    if(pStepper->state == STEPPER_READY)
+    {
+        pStepper->state = STEPPER_INITIALIZED; // stepper lose its position if enabled or disabled
+    }
 
     GPIO_PinState pinState;
 
@@ -895,4 +899,20 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pState)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(pState == NULL)
+    {
+        return STEPPER_NULL_PARAMETER;
+    }
 
+    StepperData * pStepper = _steppers + (int)id;
+
+    *pState = pStepper->state;
+
+    return STEPPER_OK;
+}
