@@ -26,7 +26,7 @@ app -> stepper: stepper_set_forward
 app -> stepper: stepper_run_force
 note over stepper #pink: STEPPER_RUNNING_FORCED
 
-app -> stepper: stepper_get_current_pulse_width
+app -> stepper: stepper_get_startup_pulse_width
 app -> timer: timer_start
 loop
     timer -> stepper: on_stepper_pulse_end

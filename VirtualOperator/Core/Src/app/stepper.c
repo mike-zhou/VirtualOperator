@@ -1055,3 +1055,31 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(pPulseWidth == NULL)
+    {
+        return STEPPER_NULL_PARAMETER;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    switch(pStepper->state)
+    {
+        case STEPPER_RUNNING_ACTIVE:
+            *pPulseWidth = pStepper->pRampupPulseWidths[0];
+            return STEPPER_OK;
+        
+        case STEPPER_RUNNING_FORCED:
+            *pPulseWidth = pStepper->forcePulseWidth;
+            return STEPPER_OK;
+
+        default:
+            return STEPPER_WRONG_STATE;
+    }
+}
+

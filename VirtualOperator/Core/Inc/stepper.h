@@ -233,7 +233,7 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
 StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
 
 // interface with timer
-StepperReturnCode stepper_get_current_pulse_width(const StepperId id, uint16_t * const pPulseWidth);
+StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth);
 StepperReturnCode on_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
 
 #endif /* INC_STEPPER_H_ */

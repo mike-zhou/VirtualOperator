@@ -21,7 +21,7 @@ app -> stepper_1: stepper_couple_passive
 note over stepper_2 #pink: STEPPER_RUNNING_PASSIVE
 
 
-app -> stepper_1: stepper_get_current_pulse_width
+app -> stepper_1: stepper_get_startup_pulse_width
 app -> timer: timer_start
 loop
     timer -> stepper_1: on_stepper_pulse_end

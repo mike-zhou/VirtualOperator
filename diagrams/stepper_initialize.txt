@@ -38,7 +38,7 @@ note over app, timer: initialize timers
 app -> timer: timer_init_data_structure
 
 note across: stepper home positioning
-loop
+loop each stepper
 
     app -> stepper: stepper_start_home_positioning
     activate stepper
@@ -47,7 +47,7 @@ loop
         note over stepper #pink: STEPPER_RETURN_TO_HOME_BOUNDARY
     deactivate stepper
 
-    app -> stepper: stepper_get_current_pulse_width
+    app -> stepper: stepper_get_startup_pulse_width
     app -> timer: timer_start
 
     loop till home boundary
