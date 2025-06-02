@@ -139,7 +139,11 @@ typedef enum
     SETPPER_ALREADY_COUPLED,
     STEPPER_NOT_COUPLED,
     STEPPER_NULL_PARAMETER,
-    STEPPER_NOT_SUPPORT_SYNC
+    STEPPER_NOT_SUPPORT_SYNC,
+    STEPPER_OUT_OF_STEPS,
+    STEPPER_UN_SYNC,
+    STEPPER_OUT_OF_RANGE,
+    STEPPER_MISSED_ACTIVE_PULSE
 } StepperReturnCode;
 
 typedef enum 
@@ -232,8 +236,13 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
  */
 StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
 
-// interface with timer
+/**
+ *  interface with timer
+*/
 StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth);
-StepperReturnCode on_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
+
+// this function is called when the clock pulse finishes, pNextPulseWidth returns the width of next pulse.
+// if this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
+StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
 
 #endif /* INC_STEPPER_H_ */

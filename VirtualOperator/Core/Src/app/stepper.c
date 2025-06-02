@@ -96,6 +96,7 @@ typedef enum _PulseState
 
     uint32_t stepsToRun;
     uint32_t currentStep;
+    uint16_t currentPulseWidth;
 
     PulseState pulseState;
 
@@ -107,15 +108,121 @@ typedef enum _PulseState
 
 static StepperData _steppers[STEPPER_COUNT];
 
+
+static void _set_clock_pulse_level_first(StepperData * const pStepper)
+{
+    GPIO_PinState pinState = GPIO_PIN_SET;
+
+    if(pStepper->isRisingEdgeDriven == true)
+    {
+        pinState = GPIO_PIN_RESET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
+}
+
+static void _set_clock_pulse_level_second(StepperData * const pStepper)
+{
+    GPIO_PinState pinState = GPIO_PIN_RESET;
+
+    if(pStepper->isRisingEdgeDriven == true)
+    {
+        pinState = GPIO_PIN_SET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
+}
+
 /**
- * This function is called by the master stepper to notify the slave stepper 
+ * This function is called by the active stepper to notify the passive stepper 
  * of its current stepIndex.
- * If stepIndex is what the slave expected, the slave needs to drive its
+ * If stepIndex is what the passive expected, the passive needs to drive its
  * clock pin according to pulseState.
  */
-static bool _on_master_step(StepperId slaveId, uint32_t stepIndex, PulseState pulseState)
+static StepperReturnCode _on_active_stepper_pulse_end(
+    const StepperId passiveStepperId, 
+    const uint32_t activeStepIndex, 
+    const PulseState activePulseState)
 {
+    if(passiveStepperId >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    
+    StepperData * pPassive = _steppers + (int)passiveStepperId;
 
+    if(pPassive->state == STEPPER_RUNNING_PASSIVE)
+    {
+        if(pPassive->passiveStepIndex >= pPassive->passiveStepsCount)
+        {
+            return STEPPER_INTERNAL_DATA_ERROR;
+        }
+
+        uint32_t expectedActiveStepIndex = pPassive->pPassiveStepArray[pPassive->passiveStepIndex];
+
+        if(activeStepIndex < expectedActiveStepIndex)
+        {
+            return STEPPER_OK;
+        }
+        if(activeStepIndex > expectedActiveStepIndex)
+        {
+            return STEPPER_MISSED_ACTIVE_PULSE;
+        }
+
+        if(activePulseState == FIRST_HALF)
+        {
+            _set_clock_pulse_level_second(pPassive);
+        }
+        else
+        {
+            _set_clock_pulse_level_first(pPassive);
+
+            pPassive->passiveStepIndex++;
+            if(pPassive->passiveStepIndex == pPassive->passiveStepsCount)
+            {
+                pPassive->state = STEPPER_READY;
+            }
+        }
+
+        return STEPPER_OK;
+    }
+    else if(pPassive->state == STEPPER_READY)
+    {
+        if(pPassive->passiveStepIndex != pPassive->passiveStepsCount)
+        {
+            return STEPPER_INTERNAL_DATA_ERROR;
+        }
+
+        return STEPPER_OK;
+    }
+
+    return STEPPER_WRONG_STATE;
+}
+
+static StepperReturnCode _notify_passive_steppers(StepperData * const pStepper)
+{
+    if(pStepper->passiveCoupled == false)
+    {
+        return STEPPER_OK;
+    }
+
+    StepperReturnCode rc;
+
+    for(int i = 0; i < STEPPER_COUNT; i++)
+    {
+        if(pStepper->passiveStepperIds[i] == STEPPER_INVALID_ID)
+        {
+            continue;
+        }
+
+        rc = _on_active_stepper_pulse_end(pStepper->passiveStepperIds[i], pStepper->currentStep, pStepper->pulseState);
+        if(rc != STEPPER_OK)
+        {
+            return rc;
+        }
+    }
+
+    return STEPPER_OK;
 }
 
 static uint16_t _is_static_data_initialized(StepperId id)
@@ -272,6 +379,29 @@ StepperReturnCode stepper_set_controls(
     return STEPPER_OK;
 }
 
+static void _stepper_set_forward(StepperData * const pStepper, const bool isForward)
+{
+    GPIO_PinState pinState;
+
+    if(isForward)
+    {
+        if(pStepper->isForwardHigh)
+            pinState = GPIO_PIN_SET;
+        else
+            pinState = GPIO_PIN_RESET;
+    }
+    else
+    {
+        if(pStepper->isForwardHigh)
+            pinState = GPIO_PIN_RESET;
+        else
+            pinState = GPIO_PIN_SET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortForward, 1 << pStepper->gpioPinIndexForward, pinState);
+    pStepper->isForward = isForward;
+}
+
 StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
 {
     if(id >= STEPPER_COUNT)
@@ -302,25 +432,7 @@ StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
         }
     }
 
-    GPIO_PinState pinState;
-
-    if(isForward)
-    {
-        if(pStepper->isForwardHigh)
-            pinState = GPIO_PIN_SET;
-        else
-            pinState = GPIO_PIN_RESET;
-    }
-    else
-    {
-        if(pStepper->isForwardHigh)
-            pinState = GPIO_PIN_RESET;
-        else
-            pinState = GPIO_PIN_SET;
-    }
-
-    HAL_GPIO_WritePin(pStepper->pGpioPortForward, 1 << pStepper->gpioPinIndexForward, pinState);
-    pStepper->isForward = isForward;
+    _stepper_set_forward(pStepper, isForward);
 
     return STEPPER_OK;
 }
@@ -726,6 +838,7 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
 
     pStepper->currentStep = 0;
     pStepper->state = STEPPER_RETURN_TO_HOME_BOUNDARY;
+    _set_clock_pulse_level_first(pStepper);
 
     return STEPPER_OK;
 }
@@ -766,7 +879,9 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
 
     pStepper->stepsToRun = steps;
     pStepper->currentStep = 0;
+    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
     pStepper->pulseState = FIRST_HALF;
+    _set_clock_pulse_level_first(pStepper);
 
     pStepper->state = STEPPER_RUNNING_ACTIVE;
 
@@ -833,6 +948,9 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     pActive->passiveStepperIds[passiveStepperId] = passiveStepperId;
     pActive->passiveCoupled = true;
 
+    _set_clock_pulse_level_first(pPassive);
+    pPassive->passiveStepIndex = 0;
+    pPassive->currentPulseWidth = 0;
     pPassive->state = STEPPER_RUNNING_PASSIVE;
 
     return STEPPER_OK;
@@ -881,6 +999,20 @@ StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, cons
     if(!found)
     {
         return STEPPER_NOT_COUPLED;
+    }
+
+    found = false;
+    for(int i=0; i < (int)STEPPER_COUNT; i++)
+    {
+        if(pActive->passiveStepperIds[i] != ENCODER_INVALID_ID)
+        {
+            found = true;
+            break;
+        }
+    }
+    if(!found)
+    {
+        pActive->passiveCoupled = false;
     }
 
     return STEPPER_OK;
@@ -1070,6 +1202,7 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
 
     switch(pStepper->state)
     {
+        case STEPPER_RETURN_TO_HOME_BOUNDARY:
         case STEPPER_RUNNING_ACTIVE:
             *pPulseWidth = pStepper->pRampupPulseWidths[0];
             return STEPPER_OK;
@@ -1083,3 +1216,254 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
     }
 }
 
+static StepperReturnCode _on_stepper_pulse_end_force(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+{
+    if(pStepper->pulseState == FIRST_HALF)
+    {
+        // first clock pulse has finished
+        _set_clock_pulse_level_second(pStepper);
+        *pNextPulseWidth = pStepper->forcePulseWidth;
+        pStepper->pulseState = SECOND_HALF;
+
+        return STEPPER_OK;
+    }
+
+    // second clock pulse has finished
+    _set_clock_pulse_level_first(pStepper);
+
+    pStepper->currentStep += 1;
+    if(pStepper->currentStep < pStepper->stepsToRun)
+    {
+        *pNextPulseWidth = pStepper->forcePulseWidth;
+        pStepper->pulseState = FIRST_HALF;
+
+        return STEPPER_OK;
+    }
+
+    *pNextPulseWidth = 0;
+
+    pStepper->state = STEPPER_READY;
+
+    return STEPPER_OK;
+}
+
+static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+{
+    if(pStepper->pulseState == FIRST_HALF)
+    {
+        // first clock pulse has finished, check if stepper has arrived at the expected position
+        if(pStepper->encoderId != ENCODER_INVALID_ID)
+        {
+            _update_stepper_position(pStepper);
+            bool inSync = _is_stepper_in_sync(pStepper);
+            if(!inSync)
+            {
+                *pNextPulseWidth = 0;
+                pStepper->state = STEPPER_OUT_OF_SYNC;
+                return STEPPER_UN_SYNC;
+            }
+        }
+        
+        // start the second clock pulse to make the stepper move further
+        _set_clock_pulse_level_second(pStepper);
+        const StepperReturnCode rc = _notify_passive_steppers(pStepper);
+        if(rc != STEPPER_OK)
+        {
+            *pNextPulseWidth = 0;
+            return rc;
+        }
+
+        *pNextPulseWidth = pStepper->currentPulseWidth;
+        pStepper->pulseState = SECOND_HALF;
+
+        return STEPPER_OK;
+    }
+
+    // second clock pulse has finished
+    _set_clock_pulse_level_first(pStepper);
+    const StepperReturnCode rc = _notify_passive_steppers(pStepper);
+    if(rc != STEPPER_OK)
+    {
+        *pNextPulseWidth = 0;
+        return rc;
+    }
+
+    pStepper->currentStep += 1;
+    if(pStepper->currentStep == pStepper->stepsToRun)
+    {
+        pStepper->state = STEPPER_READY;
+        *pNextPulseWidth = 0;
+        return STEPPER_OK;
+    }
+
+    // calculate the width of next pulse
+    uint16_t width = pStepper->cruisePulseWidth; // the default
+    bool inFirstHalf = pStepper->currentStep < (pStepper->stepsToRun >> 1);
+    if(inFirstHalf)
+    {
+        if(pStepper->currentStep < pStepper->rampupPulses)
+        {
+            // accelerating
+            width = pStepper->pRampupPulseWidths[pStepper->currentStep];
+        }
+    }
+    else
+    {
+        uint32_t remainingSteps = pStepper->stepsToRun - pStepper->currentStep;
+        if(pStepper->rampdownPulses > remainingSteps)
+        {
+            // deaccelerating
+            uint32_t index = pStepper->rampdownPulses - remainingSteps - 1;
+            width = pStepper->pRampdownPulseWidths[index];
+        }
+    }
+    *pNextPulseWidth = width;
+    
+    pStepper->currentPulseWidth = width;
+    pStepper->pulseState = FIRST_HALF;
+
+    return STEPPER_OK;
+}
+
+static bool _is_stepper_at_home_boundary(StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
+static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
+
+static StepperReturnCode _on_stepper_pulse_end_to_home(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+{
+    if(pStepper->pulseState == FIRST_HALF)
+    {
+        _set_clock_pulse_level_second(pStepper);
+        pStepper->pulseState = SECOND_HALF;
+        *pNextPulseWidth = pStepper->currentPulseWidth;
+
+        return STEPPER_OK;
+    }
+
+    // second half of clock pulse has finished.
+    _set_clock_pulse_level_first(pStepper);
+    pStepper->pulseState = FIRST_HALF;
+    *pNextPulseWidth = pStepper->pRampupPulseWidths[0];
+    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
+
+    bool atHomeBoundary = _is_stepper_at_home_boundary(pStepper);
+    if(!atHomeBoundary)
+    {
+        return STEPPER_OK;
+    }
+
+    // stepper arrives at home boundary
+    _stepper_set_forward(pStepper, true);
+    pStepper->state = STEPPER_HOME_BOUNDARY_TO_READY;
+
+    return STEPPER_OK;
+}
+
+static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+{
+    if(pStepper->pulseState == FIRST_HALF)
+    {
+        _set_clock_pulse_level_second(pStepper);
+        pStepper->pulseState = SECOND_HALF;
+        *pNextPulseWidth = pStepper->currentPulseWidth;
+
+        return STEPPER_OK;
+    }
+
+    // second half of clock pulse has finished.
+    _set_clock_pulse_level_first(pStepper);
+    pStepper->pulseState = FIRST_HALF;
+    *pNextPulseWidth = pStepper->pRampupPulseWidths[0];
+    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
+
+    bool atHomeBoundary = _is_stepper_at_home_boundary(pStepper);
+    if(atHomeBoundary)
+    {
+        pStepper->currentStep = 0;
+    }
+    else
+    {
+        pStepper->currentStep++;
+    }
+
+    if(pStepper->currentStep == pStepper->homeBoundaryToReadySteps)
+    {
+        *pNextPulseWidth = 0;
+        pStepper->state = STEPPER_READY;
+    }
+
+    return STEPPER_OK;
+}
+
+StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth)
+{
+    if(id >= STEPPER_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(pNextPulseWidth == NULL)
+    {
+        return STEPPER_NULL_PARAMETER;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+
+    if(pStepper->state == STEPPER_RUNNING_ACTIVE)
+    {
+        if(pStepper->currentStep >= pStepper->stepsToRun)
+        {
+            return STEPPER_OUT_OF_STEPS;
+        }
+        if(_is_stepper_at_home_boundary(pStepper) ||
+            _is_stepper_at_end_boundary(pStepper))
+        {
+            *pNextPulseWidth = 0;
+            return STEPPER_OUT_OF_RANGE;
+        }
+
+        StepperReturnCode returnCode = _on_stepper_pulse_end_active(pStepper, pNextPulseWidth);
+        return returnCode;
+    }   
+    
+    if(pStepper->state == STEPPER_RUNNING_FORCED)
+    {
+        if(pStepper->currentStep >= pStepper->stepsToRun)
+        {
+            return STEPPER_OUT_OF_STEPS;
+        }
+
+        StepperReturnCode returnCode = _on_stepper_pulse_end_force(pStepper, pNextPulseWidth);
+        return returnCode;
+    }
+
+    if(pStepper->state == STEPPER_RETURN_TO_HOME_BOUNDARY)
+    {
+        StepperReturnCode returnCode = _on_stepper_pulse_end_to_home(pStepper, pNextPulseWidth);
+        return returnCode;
+    }
+
+    if(pStepper->state == STEPPER_HOME_BOUNDARY_TO_READY)
+    {
+        StepperReturnCode returnCode = _on_stepper_pulse_end_home_to_ready(pStepper, pNextPulseWidth);
+        return returnCode;
+    }
+    
+    return STEPPER_WRONG_STATE;
+}

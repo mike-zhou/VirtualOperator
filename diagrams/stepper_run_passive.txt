@@ -26,7 +26,7 @@ app -> timer: timer_start
 loop
     timer -> stepper_1: on_stepper_pulse_end
     activate stepper_1
-        stepper_1 -> stepper_2: on_active_step
+        stepper_1 -> stepper_2: on_active_stepper_pulse_end
         activate stepper_2
             stepper_2 -> encoder_y: get_encoder
         deactivate stepper_2
