@@ -106,8 +106,7 @@ typedef enum _PulseState
     bool passiveCoupled;
 } StepperData;
 
-static StepperData _steppers[STEPPER_COUNT];
-
+static volatile StepperData _steppers[STEPPER_COUNT];
 
 static void _set_clock_pulse_level_first(StepperData * const pStepper)
 {
