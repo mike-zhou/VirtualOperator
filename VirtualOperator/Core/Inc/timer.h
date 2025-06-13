@@ -31,8 +31,12 @@ typedef enum
     TIMER_OK = 0,
     TIMER_INVALID_ID,
     TIMER_INVALID_STEPPER_ID,
+    TIMER_INVALID_PULSE_WIDTH,
+    TIMER_IS_RUNNING,
     TIMER_STEPPER_DRIVEN_BY_OTHER,
-    TIMER_NULL_PARAMETER
+    TIMER_NULL_PARAMETER,
+    TIMER_INTERNAL_FAILURE,
+    TIMER_WRONG_STATE
 } TimerReturnCode;
 
 typedef enum
@@ -44,9 +48,9 @@ typedef enum
 
 void timer_init_data_structure();
 
-TimerReturnCode timer_start(TimerId timerId, StepperId stepperId, uint16_t pulseWidth);
-TimerReturnCode timer_stop(TimerId timerId);
-TimerReturnCode timer_get_state(TimerId timerId, TimerState * pState);
+TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, const uint16_t pulseWidth);
+TimerReturnCode timer_stop(const TimerId timerId);
+TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState);
 
 void timer_on_emergency();
 
