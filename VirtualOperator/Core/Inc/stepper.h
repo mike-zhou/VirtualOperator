@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "encoder.h"
 
 /**
  * 10 steppers at most can be driven.
@@ -98,20 +99,6 @@ typedef enum
     STEPPER_COUNT,
     STEPPER_INVALID_ID = 0xFF
 } StepperId;
-
-typedef enum 
-{
-    ENCODER_0 = 0,
-    ENCODER_1,
-    ENCODER_2,
-    ENCODER_3,
-    ENCODER_4,
-    ENCODER_5,
-    ENCODER_6,
-    ENCODER_7,
-    ENCODER_COUNT,
-    ENCODER_INVALID_ID = 0xFF
-} EncoderId;
 
 typedef enum 
 {

@@ -14,15 +14,6 @@
 #define MAX_UINT16_ARRAY_LENGTH 4096
 #define MAX_RAMP_CLOCKS (MAX_UINT16_ARRAY_LENGTH >> 1)
 
-extern LPTIM_HandleTypeDef hlptim1;
-extern LPTIM_HandleTypeDef hlptim2;
-extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim2;
-extern TIM_HandleTypeDef htim3;
-extern TIM_HandleTypeDef htim4;
-extern TIM_HandleTypeDef htim5;
-extern TIM_HandleTypeDef htim8;
-
 typedef enum _PulseState
 {
     FIRST_HALF,          
@@ -1057,54 +1048,9 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
     return STEPPER_OK;
 }
 
-static uint16_t _get_encoder_count(const EncoderId encoderId)
-{
-    uint16_t value = 0;
-
-    switch(encoderId)
-    {
-        case ENCODER_0:
-            value = HAL_LPTIM_ReadCounter(&hlptim1);
-            break;
-
-        case ENCODER_1:
-            value = HAL_LPTIM_ReadCounter(&hlptim2);
-            break;
-
-        case ENCODER_2:
-            value = __HAL_TIM_GET_COUNTER(&htim1);
-            break;
-
-        case ENCODER_3:
-            value = __HAL_TIM_GET_COUNTER(&htim2);
-            break;
-
-        case ENCODER_4:
-            value = __HAL_TIM_GET_COUNTER(&htim3);
-            break;
-
-        case ENCODER_5:
-            value = __HAL_TIM_GET_COUNTER(&htim4);  
-            break;
-
-        case ENCODER_6:
-            value = __HAL_TIM_GET_COUNTER(&htim5);
-            break;
-
-        case ENCODER_7:
-            value = __HAL_TIM_GET_COUNTER(&htim8);
-            break;
-
-        default:
-            break;
-    }
-
-    return value;
-}
-
 static void _update_stepper_position(StepperData * const pStepper)
 {
-    const uint16_t curr = _get_encoder_count(pStepper->encoderId);
+    const uint16_t curr = encoder_get_count(pStepper->encoderId);
     const uint16_t prev = pStepper->encoderCount;
 
     // this function is called in high frequency, so the difference between

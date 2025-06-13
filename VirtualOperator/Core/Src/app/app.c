@@ -10,17 +10,7 @@
 #include "usart1.h"
 #include "peer_exchange.h"
 #include "host_command.h"
-
-extern LPTIM_HandleTypeDef hlptim1;
-extern LPTIM_HandleTypeDef hlptim2;
-
-extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim2;
-extern TIM_HandleTypeDef htim3;
-extern TIM_HandleTypeDef htim4;
-extern TIM_HandleTypeDef htim5;
-extern TIM_HandleTypeDef htim8;
-
+#include "encoder.h"
 
 static uint8_t _reply[PACKET_CONTENT_MAX_LENGTH];
 
@@ -280,35 +270,35 @@ static void _on_read_encoders(const uint8_t * p_cmd, const uint16_t length)
 	_reply[0] = p_cmd[0];
 
 	// little endian
-	value = HAL_LPTIM_ReadCounter(&hlptim1);
+	value = encoder_get_count(ENCODER_0);
 	_reply[1] = value & 0xff;
 	_reply[2] = (value >> 8) & 0xff;
 
-	value = HAL_LPTIM_ReadCounter(&hlptim2);
+	value = encoder_get_count(ENCODER_1);
 	_reply[3] = value & 0xff;
 	_reply[4] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim1);
+	value = encoder_get_count(ENCODER_2);
 	_reply[5] = value & 0xff;
 	_reply[6] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim2);
+	value = encoder_get_count(ENCODER_3);
 	_reply[7] = value & 0xff;
 	_reply[8] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim3);
+	value = encoder_get_count(ENCODER_4);
 	_reply[9] = value & 0xff;
 	_reply[10] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim4);
+	value = encoder_get_count(ENCODER_5);
 	_reply[11] = value & 0xff;
 	_reply[12] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim5);
+	value = encoder_get_count(ENCODER_6);
 	_reply[13] = value & 0xff;
 	_reply[14] = (value >> 8) & 0xff;
 
-	value = __HAL_TIM_GET_COUNTER(&htim8);
+	value = encoder_get_count(ENCODER_7);
 	_reply[15] = value & 0xff;
 	_reply[16] = (value >> 8) & 0xff;
 
