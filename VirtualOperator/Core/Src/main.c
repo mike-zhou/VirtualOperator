@@ -26,6 +26,8 @@
 #include "usb_fs.h"
 #include "peer_exchange.h"
 #include "app.h"
+#include "timer.h"
+#include "stepper.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -222,16 +224,8 @@ int main(void)
 	  print_log("TIM8 encoder is started\r\n");
   }
 
-  /* Enable the TIM Update interrupt */
-  HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(&htim17);
-  if(rc != HAL_OK)
-  {
-	    print_log("Error: failed to start Timer 17 overflow\r\n");
-  }
-  else
-  {
-	    print_log("Timer 17 is started\r\n");
-  }
+  stepper_init_data_structure();
+  timer_init_data_structure();
 
   /* USER CODE END 2 */
 
