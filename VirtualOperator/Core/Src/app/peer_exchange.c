@@ -56,7 +56,7 @@ enum OutputChannelState
 };
 
 
-static struct InputChannel
+static volatile struct InputChannel
 {
 	enum InputChannelState state;
 	uint8_t buffer[PACKET_MAX_LENGTH];
@@ -66,7 +66,7 @@ static struct InputChannel
 } _input_channel;
 
 
-static struct OutputChannel
+static volatile struct OutputChannel
 {
 	enum OutputChannelState state;
 	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][PACKET_MAX_LENGTH];

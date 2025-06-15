@@ -48,8 +48,8 @@ typedef struct
 static volatile FlexTimer _flexTimers[FLEX_TIMER_COUNT];
 static volatile FixTimer _fixTimer;
 
-static uint16_t _maxFlexTimerIsrPeriod;
-static uint16_t _maxFixTimerIsrPeriod;
+static volatile uint16_t _maxFlexTimerIsrPeriod;
+static volatile uint16_t _maxFixTimerIsrPeriod;
 
 static inline uint32_t _get_fix_timer_interval_ns(void)
 {
