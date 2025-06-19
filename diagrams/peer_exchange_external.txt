@@ -1,0 +1,64 @@
+@startuml
+
+participant peer
+participant usb
+participant main
+participant peer_exchange #gold
+participant app
+
+note over peer, app
+    this diagram shows external functions of peer_exchange
+endnote
+
+main -> peer_exchange: init_peer_exchange
+
+loop 
+    peer <-> usb:
+    note over peer_exchange: driven by poll_peer_exchange
+    main -> peer_exchange: poll_peer_exchange
+    activate peer_exchange
+        peer_exchange -> peer_exchange: _process_input_channel
+        activate peer_exchange #lightgreen
+            loop read all incoming bytes
+                peer_exchange -> usb: get_usb_fs_byte
+            end
+            peer_exchange -> main: wrapper_get_timestamp_ms
+            note over app: a command comes from peer
+            peer_exchange -> app: on_host_command
+            activate app
+                alt HOST_COMMAND_VERSION
+                    app -> app: _on_version
+                    activate app #lightblue
+                        note over app: a reply goes back to peer
+                        app -> peer_exchange: send_peer_message
+                    deactivate app
+                else HOST_COMMAND_ECHO
+                    app -> app: _on_echo
+                    activate app #lightblue
+                        app -> peer_exchange: send_peer_message
+                    deactivate app
+                else HOST_COMMAND_GET_GPIO_MODE
+                else HOST_COMMAND_READ_GPIOS
+                else HOST_COMMAND_SET_GPIO
+                else HOST_COMMAND_READ_ENCODERS
+                end
+            deactivate app
+        deactivate peer_exchange
+
+        peer_exchange -> peer_exchange: _process_output_channel
+        activate peer_exchange #pink
+            peer_exchange -> main: wrapper_get_timestamp_ms
+            loop send all outgoing bytes
+                peer_exchange -> main: wrapper_send_bytes_to_peer
+                activate main
+                    main -> usb: send_usb_fs_bytes
+                deactivate main
+            end
+        deactivate peer_exchange
+    deactivate peer_exchange
+
+    peer <-> usb:
+end
+
+
+@enduml
