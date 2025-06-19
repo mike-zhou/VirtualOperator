@@ -15,15 +15,15 @@
 
 typedef enum 
 {
-    FLEX_TIMER_0 = 0,
-    FLEX_TIMER_1,
-    FLEX_TIMER_2,
-    FLEX_TIMER_3,
-    FLEX_TIMER_4,
-    FLEX_TIMER_5,
-    FIX_TIMER,
-    TIMER_COUNT,
-    TIMER_INVALID_ID = 0xFF
+    FLEX_TIMER_ID_0 = 0,
+    FLEX_TIMER_ID_1,
+    FLEX_TIMER_ID_2,
+    FLEX_TIMER_ID_3,
+    FLEX_TIMER_ID_4,
+    FLEX_TIMER_ID_5,
+    FIX_TIMER_ID,
+    TIMER_ID_COUNT,
+    TIMER_ID_INVALID = 0xFF
 } TimerId;
 
 typedef enum

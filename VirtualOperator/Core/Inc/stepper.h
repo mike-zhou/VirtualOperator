@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "stm32h7xx_hal.h"
+
 #include "encoder.h"
 
 /**
@@ -86,18 +88,18 @@
 
 typedef enum 
 {
-    STEPPER_0 = 0,
-    STEPPER_1,
-    STEPPER_2,
-    STEPPER_3,
-    STEPPER_4,
-    STEPPER_5,
-    STEPPER_6,
-    STEPPER_7,
-    STEPPER_8,
-    STEPPER_9,
-    STEPPER_COUNT,
-    STEPPER_INVALID_ID = 0xFF
+    STEPPER_ID_0 = 0,
+    STEPPER_ID_1,
+    STEPPER_ID_2,
+    STEPPER_ID_3,
+    STEPPER_ID_4,
+    STEPPER_ID_5,
+    STEPPER_ID_6,
+    STEPPER_ID_7,
+    STEPPER_ID_8,
+    STEPPER_ID_9,
+    STEPPER_ID_COUNT,
+    STEPPER_ID_INVALID = 0xFF
 } StepperId;
 
 typedef enum 

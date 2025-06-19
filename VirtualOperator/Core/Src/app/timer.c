@@ -18,7 +18,7 @@ extern TIM_HandleTypeDef htim15;
 extern TIM_HandleTypeDef htim16;
 extern TIM_HandleTypeDef htim17;
 
-static const FLEX_TIMER_COUNT = TIMER_COUNT - 1;
+#define FLEX_TIMER_COUNT (TIMER_ID_COUNT - 1)
 
 typedef struct 
 {
@@ -42,7 +42,7 @@ typedef struct
 		bool firstPulseSkipped; 
 		uint16_t expectedPulseWidth;
 		uint16_t remainingPulseWidth;
-	} steppers[STEPPER_COUNT];
+	} steppers[STEPPER_ID_COUNT];
 } FixTimer;
 
 static volatile FlexTimer _flexTimers[FLEX_TIMER_COUNT];
@@ -92,41 +92,41 @@ void timer_init_data_structure()
 	// flex timers. A flex timer can drive only 1 stepper.
 	pTimer = _flexTimers;
 	pTimer->pTimerHandle = &htim12;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	pTimer = _flexTimers + 1;
 	pTimer->pTimerHandle = &htim13;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	pTimer = _flexTimers + 2;
 	pTimer->pTimerHandle = &htim14;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	pTimer = _flexTimers + 3;
 	pTimer->pTimerHandle = &htim15;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	pTimer = _flexTimers + 4;
 	pTimer->pTimerHandle = &htim16;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	pTimer = _flexTimers + 5;
 	pTimer->pTimerHandle = &htim17;
-	pTimer->stepperId = STEPPER_INVALID_ID;
+	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_IDLE;
 
 	// fix timer. A fix timer can drive multiple steppers.
 	_fixTimer.pTimerHandle = &hhrtim;
 	_fixTimer.fixPulseWidth_ns = _get_fix_timer_interval_ns();
 	print_log("Info: fix timer interval is set to %d ns\r\n", _fixTimer.fixPulseWidth_ns);
-	for(int i=0; i<STEPPER_COUNT; i++)
+	for(int i=0; i<STEPPER_ID_COUNT; i++)
 	{
-		_fixTimer.steppers[i].stepperId = STEPPER_INVALID_ID;
+		_fixTimer.steppers[i].stepperId = STEPPER_ID_INVALID;
 		_fixTimer.steppers[i].remainingPulseWidth = 0;
 	}
 	_fixTimer.state = TIMER_IDLE;
@@ -137,11 +137,11 @@ void timer_init_data_structure()
 
 TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, const uint16_t pulseWidth)
 {
-	if(timerId >= TIMER_COUNT)
+	if(timerId >= TIMER_ID_COUNT)
 	{
 		return TIMER_INVALID_ID;
 	}
-	if(stepperId >= STEPPER_COUNT)
+	if(stepperId >= STEPPER_ID_COUNT)
 	{
 		return TIMER_INVALID_STEPPER_ID;
 	}
@@ -149,13 +149,13 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	{
 		return TIMER_INVALID_PULSE_WIDTH;
 	}
-	if(timerId < FIX_TIMER && _flexTimers[timerId].state != TIMER_IDLE)
+	if(timerId < FIX_TIMER_ID && _flexTimers[timerId].state != TIMER_IDLE)
 	{
 		return TIMER_IS_RUNNING;
 	}
 
 	bool stepperIsRunning = false;
-	for(int i=0; i<(int)FIX_TIMER; i++)
+	for(int i=0; i<(int)FIX_TIMER_ID; i++)
 	{
 		volatile FlexTimer * pTimer = _flexTimers + i;
 		if(pTimer->state != TIMER_BUSY)
@@ -175,7 +175,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 
 	if(_fixTimer.state == TIMER_BUSY)
 	{
-		for(int i=0; i<(int)STEPPER_COUNT; i++)
+		for(int i=0; i<(int)STEPPER_ID_COUNT; i++)
 		{
 			if(_fixTimer.steppers[i].stepperId == stepperId)
 			{
@@ -189,7 +189,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 		return TIMER_STEPPER_DRIVEN_BY_OTHER;
 	}
 
-	if(timerId == FIX_TIMER)
+	if(timerId == FIX_TIMER_ID)
 	{
 		_fixTimer.steppers[stepperId].remainingPulseWidth = pulseWidth;
 		_fixTimer.steppers[stepperId].firstPulseSkipped = false;
@@ -218,7 +218,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	if(rc != HAL_OK)
 	{
 		_flexTimers[timerId].state = TIMER_IDLE;
-		_flexTimers[timerId].stepperId = STEPPER_INVALID_ID;
+		_flexTimers[timerId].stepperId = STEPPER_ID_INVALID;
 		print_log("Error: timer_start(), failed to start timer: %d, rc: %d\r\n", timerId, rc);
 		return TIMER_INTERNAL_FAILURE;
 	}
@@ -231,9 +231,9 @@ static void _stop_fix_timer()
 	_fixTimer.state = TIMER_IDLE;
 	HAL_HRTIM_SimpleBaseStop_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
 	
-	for(int i=0; i<STEPPER_COUNT; i++)
+	for(int i=0; i<STEPPER_ID_COUNT; i++)
 	{
-		_fixTimer.steppers[i].stepperId = STEPPER_INVALID_ID;
+		_fixTimer.steppers[i].stepperId = STEPPER_ID_INVALID;
 	}
 }
 
@@ -245,17 +245,17 @@ static void _stop_flex_timer(const TimerId timerId)
 	}
 	_flexTimers[timerId].state = TIMER_IDLE;
 	HAL_TIM_Base_Stop_IT(_flexTimers[timerId].pTimerHandle);
-	_flexTimers[timerId].stepperId = STEPPER_INVALID_ID;
+	_flexTimers[timerId].stepperId = STEPPER_ID_INVALID;
 }
 
 TimerReturnCode timer_stop(const TimerId timerId)
 {
-	if(timerId >= TIMER_COUNT)
+	if(timerId >= TIMER_ID_COUNT)
 	{
 		return TIMER_INVALID_ID;
 	}
 
-	if(timerId == FIX_TIMER)
+	if(timerId == FIX_TIMER_ID)
 	{
 		if(_fixTimer.state != TIMER_BUSY)
 		{
@@ -277,7 +277,7 @@ TimerReturnCode timer_stop(const TimerId timerId)
 
 TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState)
 {
-	if(timerId >= TIMER_COUNT)
+	if(timerId >= TIMER_ID_COUNT)
 	{
 		return TIMER_INVALID_ID;
 	}
@@ -286,7 +286,7 @@ TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState
 		return TIMER_NULL_PARAMETER;
 	}
 
-	if(timerId == FIX_TIMER)
+	if(timerId == FIX_TIMER_ID)
 	{
 		*pState = _fixTimer.state;
 		return TIMER_OK;
@@ -308,24 +308,24 @@ uint16_t timer_get_max_fix_isr_period()
 
 void timer_on_emergency()
 {
-	_stop_flex_timer(FLEX_TIMER_0);
-	_stop_flex_timer(FLEX_TIMER_1);
-	_stop_flex_timer(FLEX_TIMER_2);
-	_stop_flex_timer(FLEX_TIMER_3);
-	_stop_flex_timer(FLEX_TIMER_4);
-	_stop_flex_timer(FLEX_TIMER_5);
+	_stop_flex_timer(FLEX_TIMER_ID_0);
+	_stop_flex_timer(FLEX_TIMER_ID_1);
+	_stop_flex_timer(FLEX_TIMER_ID_2);
+	_stop_flex_timer(FLEX_TIMER_ID_3);
+	_stop_flex_timer(FLEX_TIMER_ID_4);
+	_stop_flex_timer(FLEX_TIMER_ID_5);
 	_stop_fix_timer();
 }
 
 static void _on_flex_timer(const TimerId timerId)
 {
-	FlexTimer * pTimer = _flexTimers + timerId;
+	volatile FlexTimer * pTimer = _flexTimers + timerId;
 
 	if(pTimer->state != TIMER_BUSY)
 	{
 		return;
 	}
-	if(pTimer->stepperId == STEPPER_INVALID_ID)
+	if(pTimer->stepperId == STEPPER_ID_INVALID)
 	{
 		return;
 	}
@@ -360,27 +360,27 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == (&htim17))
 	{
-		_on_flex_timer(FLEX_TIMER_5);
+		_on_flex_timer(FLEX_TIMER_ID_5);
 	}
 	else if(htim == (&htim16))
 	{
-		_on_flex_timer(FLEX_TIMER_4);
+		_on_flex_timer(FLEX_TIMER_ID_4);
 	}
 	else if(htim == (&htim15))
 	{
-		_on_flex_timer(FLEX_TIMER_3);
+		_on_flex_timer(FLEX_TIMER_ID_3);
 	}
 	else if(htim == (&htim14))
 	{
-		_on_flex_timer(FLEX_TIMER_2);
+		_on_flex_timer(FLEX_TIMER_ID_2);
 	}
 	else if(htim == (&htim13))
 	{
-		_on_flex_timer(FLEX_TIMER_1);
+		_on_flex_timer(FLEX_TIMER_ID_1);
 	}
 	else if(htim == (&htim12))
 	{
-		_on_flex_timer(FLEX_TIMER_0);
+		_on_flex_timer(FLEX_TIMER_ID_0);
 	}
 }
 
@@ -398,11 +398,11 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 
 	bool stopTimer = true;
 	
-	for(int i=0; i<STEPPER_COUNT; i++)
+	for(int i=0; i<STEPPER_ID_COUNT; i++)
 	{
-		struct Stepper * pStepper = _fixTimer.steppers + i;
+		volatile struct Stepper * pStepper = _fixTimer.steppers + i;
 
-		if(pStepper->stepperId == STEPPER_INVALID_ID)
+		if(pStepper->stepperId == STEPPER_ID_INVALID)
 		{
 			continue;
 		}
@@ -428,7 +428,7 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 				if(newPulseWidth == 0)
 				{
 					// stepper doesn't need to be driven any more
-					pStepper->stepperId == STEPPER_INVALID_ID;
+					pStepper->stepperId = STEPPER_ID_INVALID;
 				}
 				else
 				{
@@ -439,7 +439,7 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 			else
 			{
 				print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pStepper->stepperId);
-				pStepper->stepperId == STEPPER_INVALID_ID;
+				pStepper->stepperId = STEPPER_ID_INVALID;
 			}
 		}
 	}
