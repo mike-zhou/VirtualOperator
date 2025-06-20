@@ -1,0 +1,116 @@
+@startuml
+participant usbd_cdc_if
+participant main
+participant usb_fs #gold
+participant _cb_sending #gold
+participant _is_sending #gold
+participant _cb_receiving #gold
+participant peer_exchange
+
+main -> usb_fs: init_usb_fs
+activate usb_fs
+    usb_fs -> _cb_sending: cbuf_init
+    usb_fs -> _cb_receiving: cbuf_init
+deactivate usb_fs
+
+
+== write peer bytes to _cb_receiving ==
+
+-> usbd_cdc_if: CDC_Receive_FS
+activate usbd_cdc_if
+    usbd_cdc_if -> usb_fs: on_usb_fs_receiving_complete
+    activate usb_fs
+        loop
+            note over _cb_receiving: put byte to receiving buffer
+            usb_fs -> _cb_receiving: cbuf_put
+            activate _cb_receiving
+                _cb_receiving -> _cb_receiving: cbuf_full
+                _cb_receiving -> _cb_receiving: _advance_head
+            deactivate _cb_receiving
+        end
+    deactivate usb_fs
+deactivate usbd_cdc_if
+
+== process peer bytes ==
+
+main -> peer_exchange: poll_peer_exchange
+activate peer_exchange
+    peer_exchange -> peer_exchange: _process_input_channel
+    activate peer_exchange #lightgreen
+        loop process input bytes
+            peer_exchange -> usb_fs: get_usb_fs_byte
+            activate usb_fs
+                note over _cb_receiving: get byte from receiving buffer
+                usb_fs -> _cb_receiving: cbuf_get
+            deactivate usb_fs
+
+            peer_exchange -> usb_fs: send_usb_fs_bytes
+            note left: ACK
+            activate usb_fs
+                loop
+                    note over _cb_sending: pub byte to sending buffer
+                    usb_fs -> _cb_sending: cbuf_put
+                end
+            deactivate usb_fs
+
+            peer_exchange -> app: on_host_command
+            activate app
+                app -> peer_exchange: send_peer_message
+            deactivate app
+
+        end
+    deactivate peer_exchange
+
+    peer_exchange -> peer_exchange: _process_output_channel
+    activate peer_exchange #pink
+        peer_exchange -> usb_fs: send_usb_fs_bytes
+        note left: app msg
+        activate usb_fs
+            loop
+                note over _cb_sending: pub byte to sending buffer
+                usb_fs -> _cb_sending: cbuf_put
+            end
+        deactivate usb_fs
+    deactivate peer_exchange
+deactivate peer_exchange
+
+== read app bytes from _cb_sending ==
+
+main -> usb_fs: poll_usb_fs
+activate usb_fs
+    usb_fs -> _is_sending: get
+    alt not _is_sending
+        note over _is_sending: main can only change _is_sending to true
+        usb_fs -> usb_fs: _start_sending
+        activate usb_fs #lightblue
+            usb_fs -> _cb_sending: cbuf_get
+            alt data available
+                usb_fs -> _is_sending: 
+                note right: true
+                usb_fs -> usbd_cdc_if: CDC_Transmit_FS
+            end
+        deactivate usb_fs
+    end
+deactivate usb_fs
+
+-> usbd_cdc_if: CDC_TransmitCplt_FS
+activate usbd_cdc_if
+    usbd_cdc_if -> usb_fs: on_usb_fs_sending_complete
+    activate usb_fs
+        note over _is_sending: safe to modify in ISR
+        usb_fs -> _is_sending: 
+        note right: false
+        usb_fs -> usb_fs: _start_sending
+        activate usb_fs #lightblue
+            usb_fs -> _cb_sending: cbuf_get
+            alt data available
+                usb_fs -> _is_sending: 
+                note right: true
+                usb_fs -> usbd_cdc_if: CDC_Transmit_FS
+            end
+        deactivate usb_fs
+    deactivate usb_fs
+deactivate usbd_cdc_if
+
+@enduml
+
