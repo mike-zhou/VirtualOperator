@@ -49,13 +49,13 @@ typedef enum _PulseState
     uint16_t uint16Array[MAX_UINT16_ARRAY_LENGTH];
 
     // array of pulse width for the stepper to speed up from still to cruising
-    uint16_t * pRampupPulseWidths;
+    volatile uint16_t * pRampupPulseWidths;
     // length of widthRampUp
     uint32_t rampupPulses;
     bool isRampupPuleseWidthsPopulated;
 
     // array of pulse width for the stepper to slow down from curising to still
-    uint16_t * pRampdownPulseWidths;
+    volatile uint16_t * pRampdownPulseWidths;
     // length of widthRampDown
     uint32_t rampdownPulses;
     bool isRampdownPulseWidthsPopulated;
@@ -65,7 +65,7 @@ typedef enum _PulseState
     bool isCruisePulseWidthPopulated;
 
     // indexes for passive steppers coupled 
-    uint16_t * pPassiveStepArray;
+    volatile uint16_t * pPassiveStepArray;
     uint32_t passiveStepsCount;
     uint32_t passiveStepIndex;
     bool isPassiveStepsInitialized;
@@ -273,15 +273,15 @@ StepperReturnCode stepper_set_controls(
     const bool isRisingEdgeDriven,
     const bool isForwardHigh,
     const bool isEnableHigh,
-    const GPIO_TypeDef * pGpioPortHomeBoundary,
+    GPIO_TypeDef * const pGpioPortHomeBoundary,
     const uint8_t gpioPinIndexHomeBoundary,
-    const GPIO_TypeDef * pGpioPortEndBoundary,
+    GPIO_TypeDef * const pGpioPortEndBoundary,
     const uint8_t gpioPinIndexEndBoundary,
-    const GPIO_TypeDef * pGpioPortEnable,
+    GPIO_TypeDef * const pGpioPortEnable,
     const uint8_t gpioPinIndexEnable,
-    const GPIO_TypeDef * pGpioPortForward,
+    GPIO_TypeDef * const pGpioPortForward,
     const uint8_t gpioPinIndexForward,
-    const GPIO_TypeDef * pGpioPortClock,
+    GPIO_TypeDef * const pGpioPortClock,
     const uint8_t gpioPinIndexClock,
     const uint16_t homeBoundaryToReadySteps,
     const uint32_t range,
@@ -981,7 +981,8 @@ StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, cons
         if(pActive->passiveStepperIds[i] == passiveStepperId)
         {
             found = true;
-            pActive->passiveStepperIds[i] = ENCODER_INVALID_ID;
+            // decouple the passive stepper
+            pActive->passiveStepperIds[i] = STEPPER_ID_INVALID;
         }
     }
     if(!found)
@@ -989,10 +990,11 @@ StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, cons
         return STEPPER_NOT_COUPLED;
     }
 
+    // check if any remaining passive stepper
     found = false;
     for(int i=0; i < (int)STEPPER_ID_COUNT; i++)
     {
-        if(pActive->passiveStepperIds[i] != ENCODER_INVALID_ID)
+        if(pActive->passiveStepperIds[i] != STEPPER_ID_INVALID)
         {
             found = true;
             break;

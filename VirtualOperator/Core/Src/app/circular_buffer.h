@@ -15,7 +15,7 @@
  *   - full: indicates whether the buffer is currently full.
  */
 typedef struct {
-    uint8_t *buffer;
+    volatile uint8_t *buffer;
     size_t   capacity;
     size_t   mask;
     size_t   head;
@@ -29,50 +29,50 @@ typedef struct {
  *      - true if 'cap' is a power of two and everything is set up,
  *      - false otherwise (the circular buffer is not valid in that case).
  */
-bool cbuf_init(CircularBuffer *cbuf, uint8_t *mem_block, size_t cap);
+bool cbuf_init(volatile CircularBuffer * const cbuf, volatile uint8_t * const mem_block, size_t const cap);
 
 /*
  * cbuf_reset:
  *   Resets the buffer to an empty state (head = tail = 0, full = false).
  */
-void cbuf_reset(CircularBuffer *cbuf);
+void cbuf_reset(volatile CircularBuffer * const cbuf);
 
 /*
  * cbuf_put:
  *   Attempts to write a single byte into the buffer.
  *   Returns true on success, false if the buffer is full (no overwrite).
  */
-bool cbuf_put(CircularBuffer *cbuf, uint8_t data);
+bool cbuf_put(volatile CircularBuffer * const cbuf, uint8_t const data);
 
 /*
  * cbuf_get:
  *   Attempts to read a single byte from the buffer.
  *   Returns true on success, false if the buffer is empty.
  */
-bool cbuf_get(CircularBuffer *cbuf, uint8_t *data);
+bool cbuf_get(volatile CircularBuffer * const cbuf, uint8_t * const data);
 
 /*
  * cbuf_full:
  *   Returns 'true' if the buffer is full, 'false' otherwise.
  */
-bool cbuf_full(const CircularBuffer *cbuf);
+bool cbuf_full(const volatile CircularBuffer * const cbuf);
 
 /*
  * cbuf_empty:
  *   Returns 'true' if the buffer is empty, 'false' otherwise.
  */
-bool cbuf_empty(const CircularBuffer *cbuf);
+bool cbuf_empty(const volatile CircularBuffer * const cbuf);
 
 /*
  * cbuf_size:
  *   Returns the current number of bytes stored in the buffer.
  */
-size_t cbuf_size(const CircularBuffer *cbuf);
+size_t cbuf_size(const volatile CircularBuffer * const cbuf);
 
 /*
  * cbuf_capacity:
  *   Returns the total capacity (in bytes) of the buffer.
  */
-size_t cbuf_capacity(const CircularBuffer *cbuf);
+size_t cbuf_capacity(const volatile CircularBuffer * const cbuf);
 
 #endif /* CIRCULAR_BUFFER_H */

@@ -323,12 +323,12 @@ void test_gpio()
 bool test_UART_output(UART_HandleTypeDef *huart)
 {
 	static int counter = 0;
-	int8_t content[80];
+	uint8_t content[80];
 	HAL_StatusTypeDef status;
 
-	sprintf(content, "Hello world! %d\r\n", counter++);
+	sprintf((char *)content, "Hello world! %d\r\n", counter++);
 
-	status = HAL_UART_Transmit(huart, content, strlen(content), HAL_MAX_DELAY);
+	status = HAL_UART_Transmit(huart, content, strlen((char *)content), HAL_MAX_DELAY);
 
 	if(status == HAL_OK)
 		return true;
@@ -338,7 +338,7 @@ bool test_UART_output(UART_HandleTypeDef *huart)
 
 bool test_UART_echo(UART_HandleTypeDef *huart)
 {
-	int8_t content[80];
+	uint8_t content[80];
 	HAL_StatusTypeDef status;
 
 	status = HAL_UART_Receive(huart, content, 1, HAL_MAX_DELAY);

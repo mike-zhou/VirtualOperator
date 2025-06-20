@@ -26,10 +26,10 @@ static volatile uint8_t _receiving_cache;
 
 static volatile CircularBuffer _cbuffer_sending;
 static volatile CircularBuffer _cbuffer_receiving;
-static volatile bool cbuffer_initialized = false;
+static volatile bool _cbuffer_initialized = false;
 
 // this function can be called in interrupt or non-interrupt
-static bool start_sending()
+static bool _start_sending()
 {
 	static uint8_t cache[1024];
 	uint32_t transfer_size;
@@ -63,12 +63,12 @@ static bool start_sending()
 	return false;
 }
 
-static void start_receiving()
+static void _start_receiving()
 {
 	HAL_StatusTypeDef status;
 
 	_receiving_started = true;
-	status = HAL_UART_Receive_IT(&huart1, &_receiving_cache, 1);
+	status = HAL_UART_Receive_IT(&huart1, (uint8_t *)(&_receiving_cache), 1);
 	if(status != HAL_OK)
 	{
 		_receiving_started = false;
@@ -79,7 +79,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	cbuf_put(&_cbuffer_receiving, _receiving_cache);
 
-	start_receiving();
+	_start_receiving();
 }
 
 
@@ -87,7 +87,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	_sending_done = true;
 
-	start_sending();
+	_start_sending();
 }
 
 
@@ -103,7 +103,7 @@ bool prepare_uart1()
 		return false;
 	}
 
-	cbuffer_initialized = true;
+	_cbuffer_initialized = true;
 
 	return true;
 }
@@ -111,19 +111,19 @@ bool prepare_uart1()
 
 bool poll_usart1()
 {
-	if(!cbuffer_initialized)
+	if(!_cbuffer_initialized)
 	{
 		return false;
 	}
 
 	if(_sending_done)
 	{
-		start_sending();
+		_start_sending();
 	}
 
 	if(!_receiving_started)
 	{
-		start_receiving();
+		_start_receiving();
 	}
 
 	return true;

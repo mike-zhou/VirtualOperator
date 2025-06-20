@@ -29,9 +29,9 @@ static volatile bool _is_sending = false;
 
 static void _start_sending()
 {
-	static volatile uint8_t cache[256];
-	static volatile bool transmit_again = false;
-	static volatile uint32_t byte_count = 0;
+	static uint8_t cache[256];
+	static bool transmit_again = false;
+	static uint32_t byte_count = 0;
 
 	if(_is_sending)
 	{
