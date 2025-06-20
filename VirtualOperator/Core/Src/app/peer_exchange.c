@@ -56,7 +56,7 @@ enum OutputChannelState
 };
 
 
-static volatile struct InputChannel
+static struct InputChannel
 {
 	enum InputChannelState state;
 	uint8_t buffer[PACKET_MAX_LENGTH];
@@ -66,7 +66,7 @@ static volatile struct InputChannel
 } _input_channel;
 
 
-static volatile struct OutputChannel
+static struct OutputChannel
 {
 	enum OutputChannelState state;
 	uint8_t buffer_array[OUTPUT_BUFFER_COUNT][PACKET_MAX_LENGTH];
@@ -127,7 +127,7 @@ static inline uint16_t _timestamp_abs(uint16_t current_time, uint16_t previous_t
 	return (time - previous_time) & 0xFFFF;
 }
 
-static inline bool _check_packet_validity(const uint8_t * p_packet, const uint8_t length)
+static inline bool _check_packet_validity(const volatile uint8_t * p_packet, const uint8_t length)
 {
 	if(length < 4)
 	{
@@ -157,7 +157,7 @@ static inline bool _check_packet_validity(const uint8_t * p_packet, const uint8_
 	return true;
 }
 
-static void _on_data(const uint8_t * p_packet, const uint8_t length)
+static void _on_input_data(const uint8_t * p_packet, const uint8_t length)
 {
 	// a complete packet is received.
 	uint8_t sequence_number = p_packet[2];
@@ -169,7 +169,7 @@ static void _on_data(const uint8_t * p_packet, const uint8_t length)
 		return;
 	}
 
-	_on_peer_message(_input_channel.buffer + 3, length - 4);
+	_on_peer_message(p_packet + 3, length - 4);
 	_input_channel.sequence_number_received = sequence_number;
 }
 
@@ -278,7 +278,7 @@ static void _process_input_channel()
 					else if(p_packet[0] == DATA_TAG)
 					{
 						// print_log("PeerExchange: DATA packet arrives, sequence_number: %d, %d bytes\r\n", p_packet[2], _input_channel.data_count);
-						_on_data(p_packet, _input_channel.data_count);
+						_on_input_data(p_packet, _input_channel.data_count);
 					}
 					else
 					{
