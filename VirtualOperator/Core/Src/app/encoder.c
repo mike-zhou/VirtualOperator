@@ -17,11 +17,11 @@ uint16_t encoder_get_count(const EncoderId encoderId)
     switch(encoderId)
     {
         case ENCODER_0:
-            value = HAL_LPTIM_ReadCounter(&hlptim1);
+            value = __HAL_TIM_GET_COUNTER(&htim2);
             break;
 
         case ENCODER_1:
-            value = HAL_LPTIM_ReadCounter(&hlptim2);
+            value = HAL_LPTIM_ReadCounter(&hlptim1);
             break;
 
         case ENCODER_2:
@@ -29,11 +29,11 @@ uint16_t encoder_get_count(const EncoderId encoderId)
             break;
 
         case ENCODER_3:
-            value = __HAL_TIM_GET_COUNTER(&htim2);
+            value = __HAL_TIM_GET_COUNTER(&htim5);
             break;
 
         case ENCODER_4:
-            value = __HAL_TIM_GET_COUNTER(&htim3);
+            value = HAL_LPTIM_ReadCounter(&hlptim2);
             break;
 
         case ENCODER_5:
@@ -41,11 +41,11 @@ uint16_t encoder_get_count(const EncoderId encoderId)
             break;
 
         case ENCODER_6:
-            value = __HAL_TIM_GET_COUNTER(&htim5);
+            value = __HAL_TIM_GET_COUNTER(&htim8);
             break;
 
         case ENCODER_7:
-            value = __HAL_TIM_GET_COUNTER(&htim8);
+            value = __HAL_TIM_GET_COUNTER(&htim3);
             break;
 
         default:

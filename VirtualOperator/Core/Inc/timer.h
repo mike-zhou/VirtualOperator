@@ -52,6 +52,9 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 TimerReturnCode timer_stop(const TimerId timerId);
 TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState);
 
+uint16_t timer_get_max_flex_isr_period();
+uint16_t timer_get_max_fix_isr_period();
+
 void timer_on_emergency();
 
 #endif /* INC_TIMER_H_ */

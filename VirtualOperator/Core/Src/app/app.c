@@ -11,21 +11,33 @@
 #include "peer_exchange.h"
 #include "host_command.h"
 #include "encoder.h"
+#include "timer.h"
+
+extern uint32_t mainLoopCount;
 
 static uint8_t _reply[PACKET_CONTENT_MAX_LENGTH];
 
-static void _on_version(const uint8_t * p_cmd, const uint16_t length)
+static uint8_t _fill_version_data(uint8_t * p_buffer)
 {
 	uint8_t i;
 
-	_reply[0] = p_cmd[0];
-
 	for(i = 0; i < (PACKET_CONTENT_MAX_LENGTH - 1) && i < strlen(APP_VERSION); i++)
 	{
-		_reply[i + 1] = APP_VERSION[i];
+		p_buffer[i] = APP_VERSION[i];
 	}
 
-	send_peer_message(_reply, i + 1);
+	return i;
+}
+
+static void _on_version(const uint8_t * p_cmd, const uint16_t length)
+{
+	uint8_t versionLength;
+
+	_reply[0] = p_cmd[0];
+
+	versionLength = _fill_version_data(_reply + 1);
+
+	send_peer_message(_reply, 1 + versionLength);
 }
 
 static void _on_echo(const uint8_t * p_cmd, const uint16_t length)
@@ -105,58 +117,66 @@ static void _on_get_gpio_mode(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 23);
 }
 
-static void _on_read_gpios(const uint8_t * p_cmd, const uint16_t length)
+static uint8_t _fill_gpio_data(uint8_t * p_buffer)
 {
 	uint16_t value;
 
-	_reply[0] = p_cmd[0];
-
 	// little endian
 	value = GPIOA->IDR;
-	_reply[1] = value & 0xff;
-	_reply[2] = (value >> 8) & 0xff;
+	p_buffer[0] = value & 0xff;
+	p_buffer[1] = (value >> 8) & 0xff;
 
 	value = GPIOB->IDR;
-	_reply[3] = value & 0xff;
-	_reply[4] = (value >> 8) & 0xff;
+	p_buffer[2] = value & 0xff;
+	p_buffer[3] = (value >> 8) & 0xff;
 
 	value = GPIOC->IDR;
-	_reply[5] = value & 0xff;
-	_reply[6] = (value >> 8) & 0xff;
+	p_buffer[4] = value & 0xff;
+	p_buffer[5] = (value >> 8) & 0xff;
 
 	value = GPIOD->IDR;
-	_reply[7] = value & 0xff;
-	_reply[8] = (value >> 8) & 0xff;
+	p_buffer[6] = value & 0xff;
+	p_buffer[7] = (value >> 8) & 0xff;
 
 	value = GPIOE->IDR;
-	_reply[9] = value & 0xff;
-	_reply[10] = (value >> 8) & 0xff;
+	p_buffer[8] = value & 0xff;
+	p_buffer[9] = (value >> 8) & 0xff;
 
 	value = GPIOF->IDR;
-	_reply[11] = value & 0xff;
-	_reply[12] = (value >> 8) & 0xff;
+	p_buffer[10] = value & 0xff;
+	p_buffer[11] = (value >> 8) & 0xff;
 
 	value = GPIOG->IDR;
-	_reply[13] = value & 0xff;
-	_reply[14] = (value >> 8) & 0xff;
+	p_buffer[12] = value & 0xff;
+	p_buffer[13] = (value >> 8) & 0xff;
 
 	value = GPIOH->IDR;
-	_reply[15] = value & 0xff;
-	_reply[16] = (value >> 8) & 0xff;
+	p_buffer[14] = value & 0xff;
+	p_buffer[15] = (value >> 8) & 0xff;
 
 	value = GPIOI->IDR;
-	_reply[17] = value & 0xff;
-	_reply[18] = (value >> 8) & 0xff;
+	p_buffer[16] = value & 0xff;
+	p_buffer[17] = (value >> 8) & 0xff;
 
 	value = GPIOJ->IDR;
-	_reply[19] = value & 0xff;
-	_reply[20] = (value >> 8) & 0xff;
+	p_buffer[18] = value & 0xff;
+	p_buffer[19] = (value >> 8) & 0xff;
 
 	value = GPIOK->IDR;
-	_reply[21] = value & 0xff;
-	_reply[22] = (value >> 8) & 0xff;
+	p_buffer[20] = value & 0xff;
+	p_buffer[21] = (value >> 8) & 0xff;
 
-	send_peer_message(_reply, 23);
+	return 22;
+}
+
+static void _on_read_gpios(const uint8_t * p_cmd, const uint16_t length)
+{
+
+	_reply[0] = p_cmd[0];
+
+	uint8_t amount = _fill_gpio_data(_reply + 1);
+
+	send_peer_message(_reply, 1 + amount);
 }
 
 static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
@@ -263,46 +283,116 @@ static void _on_set_gpio(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, length);
 }
 
-static void _on_read_encoders(const uint8_t * p_cmd, const uint16_t length)
+static uint8_t _fill_encoder_data(uint8_t * p_buffer)
 {
 	uint16_t value;
 
-	_reply[0] = p_cmd[0];
-
 	// little endian
 	value = encoder_get_count(ENCODER_0);
-	_reply[1] = value & 0xff;
-	_reply[2] = (value >> 8) & 0xff;
+	p_buffer[0] = value & 0xff;
+	p_buffer[1] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_1);
-	_reply[3] = value & 0xff;
-	_reply[4] = (value >> 8) & 0xff;
+	p_buffer[2] = value & 0xff;
+	p_buffer[3] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_2);
-	_reply[5] = value & 0xff;
-	_reply[6] = (value >> 8) & 0xff;
+	p_buffer[4] = value & 0xff;
+	p_buffer[5] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_3);
-	_reply[7] = value & 0xff;
-	_reply[8] = (value >> 8) & 0xff;
+	p_buffer[6] = value & 0xff;
+	p_buffer[7] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_4);
-	_reply[9] = value & 0xff;
-	_reply[10] = (value >> 8) & 0xff;
+	p_buffer[8] = value & 0xff;
+	p_buffer[9] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_5);
-	_reply[11] = value & 0xff;
-	_reply[12] = (value >> 8) & 0xff;
+	p_buffer[10] = value & 0xff;
+	p_buffer[11] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_6);
-	_reply[13] = value & 0xff;
-	_reply[14] = (value >> 8) & 0xff;
+	p_buffer[12] = value & 0xff;
+	p_buffer[13] = (value >> 8) & 0xff;
 
 	value = encoder_get_count(ENCODER_7);
-	_reply[15] = value & 0xff;
-	_reply[16] = (value >> 8) & 0xff;
+	p_buffer[14] = value & 0xff;
+	p_buffer[15] = (value >> 8) & 0xff;
 
-	send_peer_message(_reply, 17);
+	return 16;
+}
+
+static void _on_read_encoders(const uint8_t * p_cmd, const uint16_t length)
+{
+	_reply[0] = p_cmd[0];
+
+	uint8_t amount = _fill_encoder_data(_reply + 1);
+
+	send_peer_message(_reply, 1 + amount);
+}
+
+static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
+{
+	uint16_t amount;
+	uint16_t consumed;
+	uint16_t value;
+
+	_reply[0] = p_cmd[0];
+	amount = 1;
+	// _reply = command tag
+	// amount: 1
+
+	consumed = _fill_gpio_data(_reply + amount);
+	amount += consumed;
+	if(consumed != 22)
+	{
+		print_log("Error: wrong amount of gpio values in %s\r\n", __FILE__);
+		send_peer_message(_reply, amount);
+		return;
+	}
+	// _reply += gpio values
+	// amount: 23
+	
+	consumed = _fill_encoder_data(_reply + amount);
+	amount += consumed;
+	if(consumed != 16)
+	{
+		print_log("Error: wrong amount of encoder values in %s\r\n", __FILE__);
+		send_peer_message(_reply, amount);
+		return;
+	}
+	// _reply += gpio values
+	// amount: 39
+
+	_reply[amount] = mainLoopCount;
+	amount++;
+	_reply[amount] = mainLoopCount >> 8;
+	amount++;
+	_reply[amount] = mainLoopCount >> 16;
+	amount++;
+	_reply[amount] = mainLoopCount >> 24;
+	amount++;
+	// _reply += mainLoopCount
+	// amount: 43
+
+	value = timer_get_max_flex_isr_period();
+	_reply[amount] = value & 0xff;
+	amount++;
+	_reply[amount] = value >> 8;
+	amount++;
+	// _reply += max_flex_isr_period
+	// amount: 45
+
+	value = timer_get_max_fix_isr_period();
+	_reply[amount] = value & 0xff;
+	amount++;
+	_reply[amount] = value >> 8;
+	amount++;
+	// _reply += max_fix_isr_period
+	// amount: 47
+
+	send_peer_message(_reply, amount);
 }
 
 void on_host_command(const uint8_t * p_command, const uint16_t length)
@@ -340,6 +430,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_READ_ENCODERS:
 		_on_read_encoders(p_command, length);
+		break;
+	case HOST_COMMAND_GET_STATUS:
+		_on_get_status(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);

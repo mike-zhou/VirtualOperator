@@ -69,6 +69,8 @@ UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_OTG_HS;
 
+uint32_t mainLoopCount;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -227,6 +229,7 @@ int main(void)
   stepper_init_data_structure();
   timer_init_data_structure();
 
+  mainLoopCount = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -242,6 +245,8 @@ int main(void)
 	  poll_usb_fs();
 	  poll_peer_exchange();
 	  poll_app();
+
+    mainLoopCount++;
   }
   /* USER CODE END 3 */
 }
