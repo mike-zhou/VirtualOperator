@@ -48,10 +48,10 @@
  * The first function to call is stepper_init_data_structure().
  * 
  * To make a stepper run in active mode:
- *      - set_stepper_controls()
- *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampup_pulse_widths
+ *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampdown_pulse_widths
+ *      - set_stepper_controls()
  *      - start_stepper_home_positioning
  *      - set_stepper_forward
  *      - set_stepper_enable
@@ -60,10 +60,10 @@
  *      - start timer
  * 
  * To make a stepper run in passive mode:
- *      - set_stepper_controls()
- *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampup_pulse_widths
+ *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampdown_pulse_widths
+ *      - set_stepper_controls()
  *      - start_stepper_home_positioning
  *      - set_stepper_forward
  *      - set_stepper_enable
