@@ -162,7 +162,7 @@ void stepper_init_data_structure();
  */
 StepperReturnCode stepper_set_active_rampup_pulse_widths(
     const StepperId id, 
-    const uint8_t * pWidths, 
+    const uint8_t * const pWidths, 
     const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
@@ -172,14 +172,14 @@ StepperReturnCode stepper_set_active_cruise_pulse_width(
 
 StepperReturnCode stepper_set_active_rampdown_pulse_widths(
     const StepperId id, 
-    const uint16_t * pWidths, 
-    const uint8_t count, 
+    const uint8_t * const pWidths, 
+    const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
 
 StepperReturnCode stepper_set_passive_step_indexes(
     const StepperId id, 
-    const uint16_t * pIndexes, 
+    const uint16_t * const pIndexes, 
     const uint8_t count, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
