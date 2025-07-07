@@ -397,7 +397,48 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 
 static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, const uint16_t length)
 {
+	_reply[0] = p_cmd[0];
 	
+	if(length > 255)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: too many active rampup pulse width: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+	if(length <= 4)
+	{
+		_reply[1] = 2; // too short command
+		send_peer_message(_reply, 2);
+		print_log("Error: too less active rampup pulse width: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+	if(length & 0x1 != 0x0)
+	{
+		_reply[1] = 3; // invalid length
+		send_peer_message(_reply, 2);
+		print_log("Error: wrongly aligned rampup pulse width: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+
+	StepperId stepperId = (StepperId) p_cmd[1];
+	uint8_t batchIndex = p_cmd[2];
+	uint8_t totalBatches = p_cmd[3];
+
+	uint8_t * pPulseWidth = p_cmd + 4;
+	uint8_t widthLength = length - 4;
+
+	StepperReturnCode result = stepper_set_active_rampup_pulse_widths(stepperId, pPulseWidth, widthLength, batchIndex, totalBatches);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 4;
+		print_log("Error: stepper_set_active_rampup_pulse_widths failure: %d in %s\r\n", result, __FILE__);
+	}
+	else
+	{
+		_reply[1] = 0;
+	}
+	send_peer_message(_reply, 2);
 }
 
 static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, const uint16_t length)

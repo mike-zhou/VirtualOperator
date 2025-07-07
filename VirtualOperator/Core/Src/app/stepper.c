@@ -489,8 +489,8 @@ static void _reset_active_stepper_pulses(const StepperId id)
 
 StepperReturnCode stepper_set_active_rampup_pulse_widths(
     const StepperId id, 
-    const uint16_t * pWidths, 
-    const uint8_t count, 
+    const uint8_t * pWidths, 
+    const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches)
 {
@@ -502,15 +502,20 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
     {
         return STEPPER_NULL_PARAMETER;
     }
-    if(count < 1)
+    if(length < 1)
     {
         return STEPPER_NO_PULSE;
+    }
+    if(length & 0x1)
+    {
+        return STEPPER_INVALID_PULSE_LENGTH;
     }
     if(totalBatches < 1)
     {
         return STEPPER_NO_PULSE;
     }
 
+    const uint8_t count = length >> 1;
     const uint8_t lastBatchIndex = totalBatches - 1;
     if(batchIndex > lastBatchIndex)
     {
@@ -552,7 +557,11 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
 
     for(uint8_t i=0; i<count; i++)
     {
-        pStepper->pRampupPulseWidths[pStepper->rampupPulses + i] = pWidths[i];
+        uint16_t width = pWidths[i * 2 + 1];
+        width <<= 8;
+        width += pWidths[i * 2];
+        
+        pStepper->pRampupPulseWidths[pStepper->rampupPulses + i] = width;
     }
     pStepper->rampupPulses +=  count;
 

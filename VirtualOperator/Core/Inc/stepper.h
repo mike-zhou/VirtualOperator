@@ -114,6 +114,7 @@ typedef enum
     STEPPER_INVALID_CONTROL_PARAMETER,
     STEPPER_INVALID_PASSIVE_ID,
     STEPPER_NO_PULSE,
+    STEPPER_INVALID_PULSE_LENGTH,
     STEPPER_WRONG_BATCH_INDEX,
     STEPPER_WRONG_PULSE_WIDTH,
     STEPPER_WRONG_PULSE_ORDER,
@@ -161,8 +162,8 @@ void stepper_init_data_structure();
  */
 StepperReturnCode stepper_set_active_rampup_pulse_widths(
     const StepperId id, 
-    const uint16_t * pWidths, 
-    const uint8_t count, 
+    const uint8_t * pWidths, 
+    const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
 
