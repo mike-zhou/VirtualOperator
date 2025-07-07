@@ -395,6 +395,46 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, amount);
 }
 
+static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_set_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_set_stepper_forward(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
+static void _on_run_stepper(const uint8_t * p_cmd, const uint16_t length)
+{
+	
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -434,6 +474,30 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_GET_STATUS:
 		_on_get_status(p_command, length);
 		break;
+	case HOST_COMMAND_SET_STEPPER_ACTIVE_RAMPUP_PULSE_WIDTH:
+		_on_set_stepper_active_rampup_pulse_width(p_command, length);
+		break;
+	case HOST_COMMAND_SET_STEPPER_ACTIVE_CRUISE_PULSE_WIDTH:
+		_on_set_stepper_active_cruise_pulse_width(p_command, length);
+		break;
+	case HOST_COMMAND_SET_STEPPER_ACTIVE_RAMPDOWN_PULSE_WIDTH:
+		_on_set_stepper_active_rampdown_pulse_width(p_command, length);
+		break;
+	case HOST_COMMAND_SET_STEPPER_CONTROLS:
+		_on_set_stepper_controls(p_command, length);
+		break;
+	case HOST_COMMAND_SET_STEPPER_ENABLE:
+		_on_set_stepper_enable(p_command, length);
+		break;
+	case HOST_COMMAND_SET_STEPPER_FORWARD:
+		_on_set_stepper_forward(p_command, length);
+		break;
+	case HOST_COMMAND_START_STEPPER_HOME_POSITIONING:
+		_on_start_stepper_home_positioning(p_command, length);
+		break;
+	case HOST_COMMAND_RUN_STEPPER:
+		_on_run_stepper(p_command, length);
+		break;	
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);
 		break;
