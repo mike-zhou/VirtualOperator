@@ -397,6 +397,17 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 
 static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, const uint16_t length)
 {
+	/**
+	 * cmd is in the format:
+	 * 	byte:	command ID
+	 * 	byte: 	stepper ID
+	 * 	byte: 	batch index
+	 * 	byte: 	total batches
+	 * 	byte: 	pulse0 low byte
+	 * 	byte:	pulse0 high byte
+	 * 	byte:	...
+	 * 	byte: 	pulseN high byte
+	 */
 	_reply[0] = p_cmd[0];
 	
 	if(length > 255)
@@ -443,6 +454,13 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 
 static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, const uint16_t length)
 {
+	/**
+	 * cmd is in the format:
+	 * 	byte:	command ID
+	 * 	byte: 	stepper ID
+	 * 	byte: 	pulse low byte
+	 * 	byte:	pulse high byte
+	 */
 	_reply[0] = p_cmd[0];
 
 	if(length != 4)
@@ -474,6 +492,17 @@ static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, con
 
 static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, const uint16_t length)
 {
+	/**
+	 * cmd is in the format:
+	 * 	byte:	command ID
+	 * 	byte: 	stepper ID
+	 * 	byte: 	batch index
+	 * 	byte: 	total batches
+	 * 	byte: 	pulse0 low byte
+	 * 	byte:	pulse0 high byte
+	 * 	byte:	...
+	 * 	byte: 	pulseN high byte
+	 */
 	_reply[0] = p_cmd[0];
 	
 	if(length > 255)
@@ -518,9 +547,243 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 	send_peer_message(_reply, 2);	
 }
 
+static GPIO_TypeDef * _get_gpio_port_ptr(uint8_t port_index)
+{
+	switch(port_index)
+	{
+		case 0: return GPIOA;
+		case 1: return GPIOB;
+		case 2: return GPIOC;
+		case 4:	return GPIOD;
+		case 5:	return GPIOE;
+		case 6: return GPIOF;
+		case 7: return GPIOG;
+		case 8: return GPIOG;
+		case 9: return GPIOH;
+		case 10: return GPIOI;
+		case 11: return GPIOJ;
+		case 12: return GPIOK;
+		default: 
+			print_log("Error: invalid port index in _get_gpio_port_ptr() in %s\r\n", __FILE__);
+			return NULL;
+	}
+}
+
 static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t length)
 {
+	/**
+	 * cmd is in the format:
+	 * 	1: 	stepper id
+	 * 	2: 	is rising edge driven
+	 * 	3:	is forward high
+	 * 	4:	is enable high
+	 * 	5:	gpio port index of home boundary 
+	 * 	6: 	gpio pin index of home boundary
+	 * 	7:	gpio port index of end boundary
+	 * 	8:	gpio pin index of end boundary
+	 * 	9:	gpio port index of enable signal
+	 * 	10:	gpio pin index of enable signal
+	 * 	11:	gpio port index of forward signal
+	 * 	12:	gpio pin index of forward signal
+	 * 	13:	gpio port index of clock signal
+	 * 	14:	gpio pin idnex of clock signal
+	 * 	15:	1/2 of steps from home boundary to ready
+	 * 	16:	2/2 of steps from home boundary to ready
+	 * 	17: 1/4 of range
+	 * 	18: 2/4 of range
+	 * 	19:	3/4 of range
+	 * 	20: 4/4 of range
+	 * 	21: 1/2 of steps when the stepper turns a round
+	 * 	22: 2/2 of steps when the stepper turns a round
+	 * 	23: encoder id
+	 * 	24: 1/2 of counts when the encoder turns a round
+	 * 	25: 2/2 of counts when the encoder turns a round
+	 * 	26: 1/2 of max allowable difference between actual position and ideal position
+	 * 	27: 2/2 of max allowable difference between actual position and ideal position
+	 */
+
+	StepperId stepperId = (StepperId)p_cmd[1];
+	bool isRisingEdgeDriven = p_cmd[2] > 0;
+	bool isForwardHigh = p_cmd[3] > 0;
+	bool isEnableHigh = p_cmd[4] > 0;
+	uint8_t portIndexHomeBoundary = p_cmd[5];
+	uint8_t pinIndexHomeBoundary = p_cmd[6];
+	uint8_t portIndexEndBoundary = p_cmd[7];
+	uint8_t pinIndexEndBoundary = p_cmd[8];
+	uint8_t portIndexEnableSignal = p_cmd[9];
+	uint8_t pinIndexEnableSignal = p_cmd[10];
+	uint8_t portIndexForwardSignal = p_cmd[11];
+	uint8_t pinIndexForwardSignal = p_cmd[12];
+	uint8_t portIndexClockSignal = p_cmd[13];
+	uint8_t pinIndexClockSignal = p_cmd[14];
+
+	uint16_t homeToReadySteps = p_cmd[16];
+	homeToReadySteps <<= 8;
+	homeToReadySteps += p_cmd[15];
+
+	uint32_t range = p_cmd[20];
+	range <<= 8;
+	range += p_cmd[19];
+	range <<= 8;
+	range += p_cmd[18];
+	range <<=8;
+	range += p_cmd[17];
+
+	uint16_t stepsPerRound = p_cmd[22];
+	stepsPerRound <<= 8;
+	stepsPerRound += p_cmd[21];
+
+	EncoderId encoderId = (EncoderId)p_cmd[23];
+
+	uint16_t countsPerEncoderRound = p_cmd[25];
+	countsPerEncoderRound <<= 8;
+	countsPerEncoderRound += p_cmd[24];
+
+	uint16_t maxPositionError = p_cmd[27];
+	maxPositionError <<= 8;
+	maxPositionError += p_cmd[26];
+
+	_reply[0] = p_cmd[0];
+
+	if(stepperId >= STEPPER_ID_COUNT)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		return;
+	}
+
+	if(portIndexHomeBoundary > ('K' - 'A'))
+	{
+		_reply[1] = 2;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	if(pinIndexHomeBoundary > 15)
+	{
+		_reply[1] = 3;
+		send_peer_message(_reply, 2);
+		return;
+	}
+
+	if(portIndexEndBoundary > ('K' - 'A'))
+	{
+		_reply[1] = 4;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	if(pinIndexEndBoundary > 15)
+	{
+		_reply[1] = 5;
+		send_peer_message(_reply, 2);
+		return;
+	}
+
+	if(portIndexEnableSignal > ('K' - 'A'))
+	{
+		_reply[1] = 6;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	if(pinIndexEnableSignal > 15)
+	{
+		_reply[1] = 7;
+		send_peer_message(_reply, 2);
+		return;
+	}
 	
+	if(portIndexForwardSignal > ('K' - 'A'))
+	{
+		_reply[1] = 8;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	if(pinIndexForwardSignal > 15)
+	{
+		_reply[1] = 9;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	
+	if(portIndexClockSignal > ('K' - 'A'))
+	{
+		_reply[1] = 10;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	if(pinIndexClockSignal > 15)
+	{
+		_reply[1] = 11;
+		send_peer_message(_reply, 2);
+		return;
+	}
+
+	if(encoderId >= ENCODER_COUNT)
+	{
+		_reply[1] = 12;
+		send_peer_message(_reply, 2);
+		return;
+	}
+
+	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d,	portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, maxPositionError: %d\r\n", 
+		stepperId, 
+		isRisingEdgeDriven,
+		isForwardHigh,
+		isEnableHigh,
+		portIndexHomeBoundary, 
+		pinIndexHomeBoundary,
+		portIndexEndBoundary,
+		pinIndexEndBoundary,
+		portIndexEnableSignal,
+		pinIndexEnableSignal,
+		portIndexForwardSignal,
+		pinIndexForwardSignal,
+		portIndexClockSignal,
+		pinIndexClockSignal,
+		homeToReadySteps,
+		range,
+		stepsPerRound,
+		encoderId,
+		countsPerEncoderRound,
+		maxPositionError);
+	
+	GPIO_TypeDef * pPortHomeBoundary = 	_get_gpio_port_ptr(portIndexHomeBoundary);
+	GPIO_TypeDef * pPortEndBoundary = 	_get_gpio_port_ptr(portIndexEndBoundary);
+	GPIO_TypeDef * pPortEnableSignal = 	_get_gpio_port_ptr(portIndexEnableSignal);
+	GPIO_TypeDef * pPortForwardSignal = _get_gpio_port_ptr(portIndexForwardSignal);
+	GPIO_TypeDef * pPortClockSignal = 	_get_gpio_port_ptr(portIndexClockSignal);
+
+	StepperReturnCode result = stepper_set_controls(
+		stepperId,
+		isRisingEdgeDriven,
+		isForwardHigh,
+		isEnableHigh,
+		pPortHomeBoundary,
+		pinIndexHomeBoundary,
+		pPortEndBoundary,
+		pinIndexEndBoundary,
+		pPortEnableSignal,
+		pinIndexEnableSignal,
+		pPortForwardSignal,
+		pinIndexForwardSignal,
+		pPortClockSignal,
+		pinIndexClockSignal,
+		homeToReadySteps,
+		range,
+		stepsPerRound,
+		encoderId,
+		countsPerEncoderRound,
+		maxPositionError);
+
+	if(result == STEPPER_OK)
+	{
+		_reply[1] = 0;
+	}
+	else
+	{
+		print_log("Error: stepper_set_controls() failure: %d in %s\r\n", result, __FILE__);
+		_reply[1] = 13;
+	}
+	send_peer_message(_reply, 2);
 }
 
 static void _on_set_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
