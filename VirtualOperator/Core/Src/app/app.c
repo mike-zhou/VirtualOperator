@@ -573,6 +573,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 {
 	/**
 	 * cmd is in the format:
+	 *  0: 	command id
 	 * 	1: 	stepper id
 	 * 	2: 	is rising edge driven
 	 * 	3:	is forward high
@@ -717,7 +718,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		return;
 	}
 
-	if(encoderId >= ENCODER_COUNT)
+	if(encoderId >= ENCODER_COUNT && encoderId != ENCODER_INVALID_ID)
 	{
 		_reply[1] = 12;
 		send_peer_message(_reply, 2);
@@ -788,12 +789,54 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 
 static void _on_set_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
 {
-	
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2:	enable stepper
+	 */
+
+	_reply[0] = p_cmd[0];
+	StepperId stepperId = (StepperId) p_cmd[1];
+	bool enableStepper = p_cmd[2] > 0;
+
+	StepperReturnCode result = stepper_set_enable(stepperId, enableStepper);
+	if(result == STEPPER_OK)
+	{
+		_reply[1] = 0;
+	}
+	else
+	{
+		print_log("Error: stepper_set_enable() failure: %d in %s\r\n", result, __FILE__);
+		_reply[1] = 1;
+	}
+	send_peer_message(_reply, 2);
 }
 
 static void _on_set_stepper_forward(const uint8_t * p_cmd, const uint16_t length)
 {
-	
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2:	isForward
+	 */
+
+	_reply[0] = p_cmd[0];
+	StepperId stepperId = (StepperId) p_cmd[1];
+	bool isForward = p_cmd[2] > 0;
+
+	StepperReturnCode result = stepper_set_forward(stepperId, isForward);
+	if(result == STEPPER_OK)
+	{
+		_reply[1] = 0;
+	}
+	else
+	{
+		print_log("Error: stepper_set_forward() failure: %d in %s\r\n", result, __FILE__);
+		_reply[1] = 1;
+	}
+	send_peer_message(_reply, 2);
 }
 
 static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint16_t length)
