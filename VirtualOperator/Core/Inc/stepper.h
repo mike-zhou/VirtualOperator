@@ -217,7 +217,6 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id);
 StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps);
 
 StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
-StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
 
 StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps);
 

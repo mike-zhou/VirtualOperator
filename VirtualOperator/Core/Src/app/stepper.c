@@ -174,15 +174,6 @@ static StepperReturnCode _on_active_stepper_pulse_end(
 
         return STEPPER_OK;
     }
-    else if(pPassive->state == STEPPER_READY)
-    {
-        if(pPassive->passiveStepIndex != pPassive->passiveStepsCount)
-        {
-            return STEPPER_INTERNAL_DATA_ERROR;
-        }
-
-        return STEPPER_OK;
-    }
 
     return STEPPER_WRONG_STATE;
 }
@@ -198,15 +189,33 @@ static StepperReturnCode _notify_passive_steppers(volatile StepperData * const p
 
     for(int i = 0; i < STEPPER_ID_COUNT; i++)
     {
-        if(pStepper->passiveStepperIds[i] == STEPPER_ID_INVALID)
+        const StepperId passiveStepperId = pStepper->passiveStepperIds[i];
+        if(passiveStepperId == STEPPER_ID_INVALID)
         {
             continue;
         }
 
-        rc = _on_active_stepper_pulse_end(pStepper->passiveStepperIds[i], pStepper->currentStep, pStepper->pulseState);
+        rc = _on_active_stepper_pulse_end(passiveStepperId, pStepper->currentStep, pStepper->pulseState);
         if(rc != STEPPER_OK)
         {
             return rc;
+        }
+
+        volatile StepperData * pPassive = _steppers + (int)passiveStepperId;
+        if(pPassive->state == STEPPER_READY)
+        {
+            // decouple passive stepper
+            pStepper->passiveStepperIds[i] = STEPPER_ID_INVALID; 
+
+            pStepper->passiveCoupled = false;
+            for(int j=0; j<STEPPER_ID_COUNT; j++)
+            {
+                if(pStepper->passiveStepperIds[j] != STEPPER_ID_INVALID)
+                {
+                    pStepper->passiveCoupled = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -967,70 +976,6 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     pPassive->passiveStepIndex = 0;
     pPassive->currentPulseWidth = 0;
     pPassive->state = STEPPER_RUNNING_PASSIVE;
-
-    return STEPPER_OK;
-}
-
-StepperReturnCode stepper_decouple_passive(const StepperId activeStepperId, const StepperId passiveStepperId)
-{
-    if(activeStepperId >= STEPPER_ID_COUNT)
-    {
-        return STEPPER_INVALID_ID;
-    }
-    if(passiveStepperId >= STEPPER_ID_COUNT)
-    {
-        return STEPPER_INVALID_ID;
-    }
-    if(activeStepperId == passiveStepperId)
-    {
-        return STEPPER_INVALID_ID;
-    }
-
-    volatile StepperData * pActive = _steppers + (int)activeStepperId;
-    volatile StepperData * pPassive = _steppers + (int)passiveStepperId;
-
-    if(pActive->state != STEPPER_READY)
-    {
-        return STEPPER_WRONG_STATE;
-    }
-    if(pPassive->state != STEPPER_READY)
-    {
-        return STEPPER_WRONG_STATE;
-    }
-    if(!pActive->passiveCoupled)
-    {
-        return STEPPER_NOT_COUPLED;
-    }
-
-    bool found = false;
-    for(int i=0; i < (int)STEPPER_ID_COUNT; i++)
-    {
-        if(pActive->passiveStepperIds[i] == passiveStepperId)
-        {
-            found = true;
-            // decouple the passive stepper
-            pActive->passiveStepperIds[i] = STEPPER_ID_INVALID;
-        }
-    }
-    if(!found)
-    {
-        return STEPPER_NOT_COUPLED;
-    }
-
-    // check if any remaining passive stepper
-    found = false;
-    for(int i=0; i < (int)STEPPER_ID_COUNT; i++)
-    {
-        if(pActive->passiveStepperIds[i] != STEPPER_ID_INVALID)
-        {
-            found = true;
-            break;
-        }
-    }
-    if(!found)
-    {
-        pActive->passiveCoupled = false;
-    }
 
     return STEPPER_OK;
 }

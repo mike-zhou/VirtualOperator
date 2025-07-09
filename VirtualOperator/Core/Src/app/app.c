@@ -1016,6 +1016,29 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	 * 1:	stepper id
 	 * 2:	active stepper id
 	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 3)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+
+	StepperId passiveStepperId = (StepperId)p_cmd[1];
+	StepperId activeStepperId = (StepperId)p_cmd[2];
+
+	StepperReturnCode stepper_result = stepper_couple_passive(activeStepperId, passiveStepperId);
+	if(stepper_result != STEPPER_OK)
+	{
+		_reply[1] = 3; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_couple_passive() failure: %d in %s\r\n", stepper_result, __FILE__);
+		return;
+	}
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
 }
 
 static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
