@@ -115,6 +115,8 @@ typedef enum
     STEPPER_INVALID_PASSIVE_ID,
     STEPPER_NO_PULSE,
     STEPPER_INVALID_PULSE_LENGTH,
+    STEPPER_NO_INDEX,
+    STEPPER_INVALID_PULSE_LENGTH,
     STEPPER_WRONG_BATCH_INDEX,
     STEPPER_WRONG_PULSE_WIDTH,
     STEPPER_WRONG_PULSE_ORDER,
@@ -179,8 +181,8 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
 
 StepperReturnCode stepper_set_passive_step_indexes(
     const StepperId id, 
-    const uint16_t * const pIndexes, 
-    const uint8_t count, 
+    const uint8_t * const pIndexes, 
+    const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
 

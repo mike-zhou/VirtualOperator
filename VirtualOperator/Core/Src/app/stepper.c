@@ -720,8 +720,8 @@ static void _reset_passive_stepper_pulses(const StepperId id)
 
 StepperReturnCode stepper_set_passive_step_indexes(
     const StepperId id, 
-    const uint16_t * const pIndexes, 
-    const uint8_t count, 
+    const uint8_t * const pIndexes, 
+    const uint8_t length, 
     const uint8_t batchIndex, 
     const uint8_t totalBatches)
 {
@@ -733,13 +733,17 @@ StepperReturnCode stepper_set_passive_step_indexes(
     {
         return STEPPER_NULL_PARAMETER;
     }
-    if(count < 1)
+    if(length < 2)
     {
-        return STEPPER_NO_PULSE;
+        return STEPPER_NO_INDEX;
+    }
+    if(length & 0x1)
+    {
+        return STEPPER_INVALID_PULSE_LENGTH;
     }
     if(totalBatches < 1)
     {
-        return STEPPER_NO_PULSE;
+        return STEPPER_NO_INDEX;
     }
     const uint8_t lastBatchIndex = totalBatches - 1;
 
@@ -748,6 +752,7 @@ StepperReturnCode stepper_set_passive_step_indexes(
         return STEPPER_WRONG_BATCH_INDEX;
     }
 
+    const uint8_t count = length >> 2;
     volatile StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
@@ -797,7 +802,11 @@ StepperReturnCode stepper_set_passive_step_indexes(
 
     for(uint8_t i=0; i<count; i++)
     {
-        pStepper->pPassiveStepArray[pStepper->passiveStepsCount + i] = pIndexes[i];
+        uint16_t index = pIndexes[i * 2 + 1];
+        index >>= 8;
+        index += pIndexes[i * 2];
+
+        pStepper->pPassiveStepArray[pStepper->passiveStepsCount + i] = index;
     }
     pStepper->passiveStepsCount += count;
 

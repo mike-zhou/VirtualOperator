@@ -547,6 +547,60 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 	send_peer_message(_reply, 2);	
 }
 
+static void _on_set_stepper_passive_step_indexes(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * cmd is in the format:
+	 * 	0:	command ID
+	 * 	1: 	stepper ID
+	 * 	2: 	batch index
+	 * 	3: 	total batches
+	 * 	4: 	1/2 index0
+	 * 	5:	2/2 index0
+	 * 	 :	...
+	 * 	n: 	2/2 indexN
+	 */
+	_reply[0] = p_cmd;
+	if(length > 255)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: too many indexes: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+	if(length <= 4)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: too less indexes: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+	if(length & 0x1 != 0x0)
+	{
+		_reply[1] = 3; 
+		send_peer_message(_reply, 2);
+		print_log("Error: wrongly aligned indexes: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+
+	StepperId stepperId = (StepperId)p_cmd[1];
+	uint8_t batchIndex = p_cmd[2];
+	uint8_t totalBatches = p_cmd[3];
+	uint8_t indexBytes = length - 4;
+
+	StepperReturnCode result = stepper_set_passive_step_indexes(stepperId, p_cmd + 4, indexBytes, batchIndex, totalBatches);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 4;
+		print_log("Error: stepper_set_passive_step_indexes failure: %d in %s\r\n", result, __FILE__);
+	}
+	else
+	{
+		_reply[1] = 0;
+	}
+	send_peer_message(_reply, 2);	
+}
+
 static GPIO_TypeDef * _get_gpio_port_ptr(uint8_t port_index)
 {
 	switch(port_index)
@@ -558,11 +612,10 @@ static GPIO_TypeDef * _get_gpio_port_ptr(uint8_t port_index)
 		case 5:	return GPIOE;
 		case 6: return GPIOF;
 		case 7: return GPIOG;
-		case 8: return GPIOG;
-		case 9: return GPIOH;
-		case 10: return GPIOI;
-		case 11: return GPIOJ;
-		case 12: return GPIOK;
+		case 8: return GPIOH;
+		case 9: return GPIOI;
+		case 10: return GPIOJ;
+		case 11: return GPIOK;
 		default: 
 			print_log("Error: invalid port index in _get_gpio_port_ptr() in %s\r\n", __FILE__);
 			return NULL;
@@ -841,12 +894,46 @@ static void _on_set_stepper_forward(const uint8_t * p_cmd, const uint16_t length
 
 static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint16_t length)
 {
-	
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2: 	timer id
+	 */
 }
 
-static void _on_run_stepper(const uint8_t * p_cmd, const uint16_t length)
+static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 {
-	
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1: 	stepper id
+	 * 2: 	timer id
+	 * 3:	1/2 pulse width
+	 * 4:	2/2 pulse width
+	 * 5: 	1/2 steps
+	 * 6:	2/2 steps
+	 */
+}
+
+static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2:	active stepper id
+	 */
+}
+
+static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2:	timer id
+	 */
 }
 
 void on_host_command(const uint8_t * p_command, const uint16_t length)
@@ -897,6 +984,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_SET_STEPPER_ACTIVE_RAMPDOWN_PULSE_WIDTH:
 		_on_set_stepper_active_rampdown_pulse_width(p_command, length);
 		break;
+	case HOST_COMMAND_SET_STEPPER_PASSIVE_STEP_INDEXES:
+		_on_set_stepper_passive_step_indexes(p_command, length);
+		break;
 	case HOST_COMMAND_SET_STEPPER_CONTROLS:
 		_on_set_stepper_controls(p_command, length);
 		break;
@@ -909,9 +999,15 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_START_STEPPER_HOME_POSITIONING:
 		_on_start_stepper_home_positioning(p_command, length);
 		break;
-	case HOST_COMMAND_RUN_STEPPER:
-		_on_run_stepper(p_command, length);
+	case HOST_COMMAND_RUN_STEPPER_FORCE:
+		_on_run_stepper_force(p_command, length);
 		break;	
+	case HOST_COMMAND_RUN_STEPPER_PASSIVE:
+		_on_run_stepper_passive(p_command, length);
+		break;
+	case HOST_COMMAND_RUN_STEPPER_ACTIVE:
+		_on_run_stepper_active(p_command, length);
+		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);
 		break;
