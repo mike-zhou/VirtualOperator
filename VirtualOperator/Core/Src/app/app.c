@@ -957,6 +957,55 @@ static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 	 * 5: 	1/2 steps
 	 * 6:	2/2 steps
 	 */
+	_reply[0] = p_cmd[0];
+	if(length != 7)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+
+	StepperId stepperId = (StepperId)p_cmd[1];
+	TimerId timerId = (TimerId)p_cmd[2];
+
+	uint16_t pulseWidth = p_cmd[4];
+	pulseWidth <<= 8;
+	pulseWidth += p_cmd[3];
+
+	uint16_t steps = p_cmd[6];
+	steps <<= 8;
+	steps += p_cmd[5];
+
+	StepperReturnCode stepper_result = stepper_run_force(stepperId, pulseWidth, steps);
+	if(stepper_result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_run_force() failure: %d in %s\r\n", stepper_result, __FILE__);
+		return;
+	}
+
+	stepper_result = stepper_get_startup_pulse_width(stepperId, &pulseWidth);
+	if(stepper_result != STEPPER_OK)
+	{
+		_reply[1] = 3; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FILE__);
+		return;
+	}
+
+	TimerReturnCode timer_result = timer_start(timerId, stepperId, pulseWidth);
+	if(timer_result != TIMER_OK)
+	{
+		_reply[1] = 4; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FILE__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
 }
 
 static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length)
