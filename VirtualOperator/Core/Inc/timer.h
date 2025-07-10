@@ -50,6 +50,7 @@ void timer_init_data_structure();
 
 TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, const uint16_t pulseWidth);
 TimerReturnCode timer_stop(const TimerId timerId);
+TimerReturnCode timer_set_prescaler(const TimerId timerId, const uint16_t prescaler);
 TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState);
 
 uint16_t timer_get_max_flex_isr_period();

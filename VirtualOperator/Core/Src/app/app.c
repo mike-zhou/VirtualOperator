@@ -1106,6 +1106,122 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 2);
 }
 
+static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	1/2 prescaler for flex timer 0
+	 * 2: 	2/2 prescaler for flex timer 0
+	 * 3: 	1/2 prescaler for flex timer 1
+	 * 4:	2/2 prescaler for flex timer 1
+	 * ...
+	 * 11:	1/2 prescaler for flex timer 5
+	 * 12: 	2/2 prescaler for flex timer 5
+	 * 13: 	1/2 prescaler for fix timer 
+	 * 14: 	2/2 prescaler for fix timer
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 15)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		return;
+	}
+
+	uint16_t prescaler;
+	TimerReturnCode result;
+
+	prescaler = p_cmd[2];
+	prescaler <<= 8;
+	prescaler += p_cmd[1];
+	result = timer_set_prescaler(FLEX_TIMER_ID_0, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[4];
+	prescaler <<= 8;
+	prescaler += p_cmd[3];
+	result = timer_set_prescaler(FLEX_TIMER_ID_1, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 3; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[6];
+	prescaler <<= 8;
+	prescaler += p_cmd[5];
+	result = timer_set_prescaler(FLEX_TIMER_ID_2, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 4; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[8];
+	prescaler <<= 8;
+	prescaler += p_cmd[7];
+	result = timer_set_prescaler(FLEX_TIMER_ID_3, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 5; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[10];
+	prescaler <<= 8;
+	prescaler += p_cmd[9];
+	result = timer_set_prescaler(FLEX_TIMER_ID_4, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 6; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[12];
+	prescaler <<= 8;
+	prescaler += p_cmd[11];
+	result = timer_set_prescaler(FLEX_TIMER_ID_5, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 7; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	prescaler = p_cmd[14];
+	prescaler <<= 8;
+	prescaler += p_cmd[13];
+	result = timer_set_prescaler(FIX_TIMER_ID, prescaler);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 8; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -1177,6 +1293,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_RUN_STEPPER_ACTIVE:
 		_on_run_stepper_active(p_command, length);
+		break;
+	case HOST_COMMAND_SET_TIMER_PRESCALER:
+		_on_set_timer_prescaler(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);

@@ -5,6 +5,8 @@
  *      Author: Mike
  */
 
+#include <stm32h7xx_hal_tim.h>
+
 #include "stm32h7xx_hal.h"
 #include "usart1.h"
 #include "timer.h"
@@ -273,6 +275,28 @@ TimerReturnCode timer_stop(const TimerId timerId)
 	_stop_flex_timer(timerId);
 
 	return TIMER_OK;
+}
+
+TimerReturnCode timer_set_prescaler(const TimerId timerId, const uint16_t prescaler)
+{
+	switch(timerId)
+	{
+		case FLEX_TIMER_ID_0:
+		case FLEX_TIMER_ID_1:
+		case FLEX_TIMER_ID_2:
+		case FLEX_TIMER_ID_3:
+		case FLEX_TIMER_ID_4:
+		case FLEX_TIMER_ID_5:
+			__HAL_TIM_SET_PRESCALER(_flexTimers[timerId].pTimerHandle, prescaler);
+			return TIMER_OK;
+
+		case FIX_TIMER_ID:
+			_HAL_HRTIM_SETPERIOD(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, prescaler);
+			return TIMER_OK;
+
+		default:
+			return TIMER_INVALID_ID;
+	}
 }
 
 TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState)
