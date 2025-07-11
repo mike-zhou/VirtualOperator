@@ -291,7 +291,34 @@ TimerReturnCode timer_set_prescaler(const TimerId timerId, const uint16_t presca
 			return TIMER_OK;
 
 		case FIX_TIMER_ID:
-			_HAL_HRTIM_SETPERIOD(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, prescaler);
+			__HAL_HRTIM_SETPERIOD(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, prescaler);
+			return TIMER_OK;
+
+		default:
+			return TIMER_INVALID_ID;
+	}
+}
+
+TimerReturnCode timer_get_prescaler(const TimerId timerId, uint16_t * const pPrescaler)
+{
+	if(pPrescaler == NULL)
+	{
+		return TIMER_NULL_PARAMETER;
+	}
+
+	switch(timerId)
+	{
+		case FLEX_TIMER_ID_0:
+		case FLEX_TIMER_ID_1:
+		case FLEX_TIMER_ID_2:
+		case FLEX_TIMER_ID_3:
+		case FLEX_TIMER_ID_4:
+		case FLEX_TIMER_ID_5:
+			*pPrescaler = _flexTimers[timerId].pTimerHandle->Instance->PSC;
+			return TIMER_OK;
+
+		case FIX_TIMER_ID:
+			*pPrescaler = __HAL_HRTIM_GETPERIOD(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
 			return TIMER_OK;
 
 		default:

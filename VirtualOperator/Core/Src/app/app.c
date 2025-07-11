@@ -332,6 +332,173 @@ static void _on_read_encoders(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 1 + amount);
 }
 
+static uint8_t _fill_timer_data(uint8_t * const p_buffer)
+{
+	/**
+	 * return timer data:
+	 * 0: 	timer 0 state
+	 * 1:	1/2 prescaler 0
+	 * 2:	2/2 prescaler 0
+	 * ...
+	 */
+	TimerReturnCode result;
+	TimerState state;
+	uint16_t prescaler;
+	uint8_t index;
+	
+	index = 0;
+	result = timer_get_state(FLEX_TIMER_ID_0, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_0, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler; // low byte
+	p_buffer[index + 2] = prescaler >> 8; // high byte
+
+	index += 3;
+	result = timer_get_state(FLEX_TIMER_ID_1, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_1, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	result = timer_get_state(FLEX_TIMER_ID_2, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_2, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	result = timer_get_state(FLEX_TIMER_ID_3, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_3, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	result = timer_get_state(FLEX_TIMER_ID_4, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_4, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	result = timer_get_state(FLEX_TIMER_ID_5, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FLEX_TIMER_ID_5, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	result = timer_get_state(FIX_TIMER_ID, &state);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	result = timer_get_prescaler(FIX_TIMER_ID, &prescaler);
+	if(result != TIMER_OK)
+	{
+		return 0;
+	}
+	p_buffer[index] = (uint8_t)state;
+	p_buffer[index + 1] = prescaler;
+	p_buffer[index + 2] = prescaler >> 8;
+
+	index += 3;
+	return index;
+}
+
+static uint8_t _fill_stepper_data(uint8_t * const p_buffer)
+{
+	/**
+	 * stepper data:
+	 * 0:	stepper 0 state
+	 * 1:	stepper 0 composite: isRisingEdgeDriven | isForwardHigh | isEnableHigh | homeBoundary | endBoundary | isEnabled | isForward
+	 * 2: 	stepper 0 composite: isRampupPopulated | isCruisePopulated | isRampdownPopulated | isPassiveStepsPopulated
+	 * 3: 	1/4 offset
+	 * 4:	2/4 offset
+	 * 5:	3/4 offset
+	 * 6:	4/4 offset
+	 * 7:	1/4 encoderOffset
+	 * 8:	2/4 encoderOffset
+	 * 9:	3/4 encoderOffset
+	 * 10:	4/4 encoderOffset
+	 */
+
+	uint8_t consumed = 0;
+	uint8_t statusLength;
+
+	stepper_get_status(STEPPER_ID_0, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_1, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_2, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_3, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_4, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_5, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_6, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_7, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_8, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	stepper_get_status(STEPPER_ID_9, p_buffer + consumed, &statusLength);
+	consumed += statusLength;
+	
+	return consumed;
+}
+
 static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 {
 	uint16_t amount;
@@ -339,31 +506,34 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	uint16_t value;
 
 	_reply[0] = p_cmd[0];
-	amount = 1;
+	_reply[1] = 0;
+	amount = 2;
 	// _reply = command tag
-	// amount: 1
+	// amount: 2
 
 	consumed = _fill_gpio_data(_reply + amount);
 	amount += consumed;
 	if(consumed != 22)
 	{
 		print_log("Error: wrong amount of gpio values in %s\r\n", __FILE__);
-		send_peer_message(_reply, amount);
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
 		return;
 	}
 	// _reply += gpio values
-	// amount: 23
+	// amount: 24
 	
 	consumed = _fill_encoder_data(_reply + amount);
 	amount += consumed;
 	if(consumed != 16)
 	{
 		print_log("Error: wrong amount of encoder values in %s\r\n", __FILE__);
-		send_peer_message(_reply, amount);
+		_reply[1] = 2;
+		send_peer_message(_reply, 2);
 		return;
 	}
-	// _reply += gpio values
-	// amount: 39
+	// _reply += encoder values
+	// amount: 40
 
 	_reply[amount] = mainLoopCount;
 	amount++;
@@ -374,7 +544,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	_reply[amount] = mainLoopCount >> 24;
 	amount++;
 	// _reply += mainLoopCount
-	// amount: 43
+	// amount: 44
 
 	value = timer_get_max_flex_isr_period();
 	_reply[amount] = value & 0xff;
@@ -382,7 +552,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	_reply[amount] = value >> 8;
 	amount++;
 	// _reply += max_flex_isr_period
-	// amount: 45
+	// amount: 46
 
 	value = timer_get_max_fix_isr_period();
 	_reply[amount] = value & 0xff;
@@ -390,7 +560,31 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	_reply[amount] = value >> 8;
 	amount++;
 	// _reply += max_fix_isr_period
-	// amount: 47
+	// amount: 48
+
+	consumed = _fill_timer_data(_reply + amount);
+	amount += consumed;
+	if(consumed != 21)
+	{
+		print_log("Error: wrong amount of timer data in %s\r\n", __FILE__);
+		_reply[1] = 3;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	// _reply += timer data
+	// amount: 69
+
+	consumed = _fill_stepper_data(_reply + amount);
+	amount += consumed;
+	if(consumed != 110)
+	{
+		print_log("Error: wrong amount of timer data in %s\r\n", __FILE__);
+		_reply[1] = 4;
+		send_peer_message(_reply, 2);
+		return;
+	}
+	// _reply += stepper data
+	// amount: 179
 
 	send_peer_message(_reply, amount);
 }

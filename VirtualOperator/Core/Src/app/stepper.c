@@ -68,7 +68,7 @@ typedef enum _PulseState
     volatile uint16_t * pPassiveStepArray;
     uint32_t passiveStepsCount;
     uint32_t passiveStepIndex;
-    bool isPassiveStepsInitialized;
+    bool isPassiveStepsPopulated;
 
     /**
      * dynamic data
@@ -80,7 +80,7 @@ typedef enum _PulseState
     bool isForward;
     uint32_t offset;
 
-    int32_t actualPosition;
+    int32_t encodeOffset;
     uint16_t encoderCount;
 
     uint32_t stepsToRun;
@@ -231,7 +231,7 @@ static uint16_t _is_static_data_initialized(StepperId id)
         return false;
     }
     
-    if(pStepper->isPassiveStepsInitialized)
+    if(pStepper->isPassiveStepsPopulated)
     {
         return true;
     }
@@ -257,13 +257,13 @@ void stepper_init_data_structure()
         pStepper->isRampupPuleseWidthsPopulated = false;
         pStepper->isRampdownPulseWidthsPopulated = false;
         pStepper->isCruisePulseWidthPopulated = false;
-        pStepper->isPassiveStepsInitialized = false;
+        pStepper->isPassiveStepsPopulated = false;
 
         // dynamic data
         pStepper->state = STEPPER_UNINITIALIZED;
         pStepper->isEnabled = false;
         pStepper->offset = 0;
-        pStepper->actualPosition = 0;
+        pStepper->encodeOffset = 0;
         pStepper->encoderCount = 0;
         pStepper->stepsToRun = 0;
         pStepper->currentStep = 0;
@@ -493,7 +493,7 @@ static void _reset_active_stepper_pulses(const StepperId id)
     pStepper->pPassiveStepArray = NULL;
     pStepper->passiveStepsCount = 0;
     pStepper->passiveStepIndex = 0;
-    pStepper->isPassiveStepsInitialized = false;
+    pStepper->isPassiveStepsPopulated = false;
 }
 
 StepperReturnCode stepper_set_active_rampup_pulse_widths(
@@ -724,7 +724,7 @@ static void _reset_passive_stepper_pulses(const StepperId id)
     pStepper->pPassiveStepArray = pStepper->uint16Array;
     pStepper->passiveStepsCount = 0;
     pStepper->passiveStepIndex = 0;
-    pStepper->isPassiveStepsInitialized = false;
+    pStepper->isPassiveStepsPopulated = false;
 }
 
 StepperReturnCode stepper_set_passive_step_indexes(
@@ -821,7 +821,7 @@ StepperReturnCode stepper_set_passive_step_indexes(
 
     if(batchIndex == lastBatchIndex)
     {
-        pStepper->isPassiveStepsInitialized = true;
+        pStepper->isPassiveStepsPopulated = true;
     }
 
     return STEPPER_OK;
@@ -938,7 +938,7 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     {
         return STEPPER_WRONG_STATE;
     }
-    if(pPassive->isPassiveStepsInitialized == false)
+    if(pPassive->isPassiveStepsPopulated == false)
     {
         return STEPPER_WRONG_STATE;
     }
@@ -1020,8 +1020,13 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
     return STEPPER_OK;
 }
 
-static void _update_stepper_position(volatile StepperData * const pStepper)
+static void _update_encoder_offset(volatile StepperData * const pStepper)
 {
+    if(pStepper->encoderId == ENCODER_INVALID_ID)
+    {
+        return;
+    }
+
     const uint16_t curr = encoder_get_count(pStepper->encoderId);
     const uint16_t prev = pStepper->encoderCount;
 
@@ -1039,11 +1044,11 @@ static void _update_stepper_position(volatile StepperData * const pStepper)
         uint16_t delta = curr - prev;
         if(delta < 0x7FFF)
         {
-            pStepper->actualPosition += delta; // case 0
+            pStepper->encodeOffset += delta; // case 0
         }
         else
         {
-            pStepper->actualPosition -= 0x10000 - delta; // case 3
+            pStepper->encodeOffset -= 0x10000 - delta; // case 3
         }
     }
     else
@@ -1051,15 +1056,83 @@ static void _update_stepper_position(volatile StepperData * const pStepper)
         uint16_t delta = prev - curr;
         if(delta < 0x7FFF)
         {
-            pStepper->actualPosition -= delta; // case 2
+            pStepper->encodeOffset -= delta; // case 2
         }
         else
         {
-            pStepper->actualPosition += 0x10000 - delta; // case 1
+            pStepper->encodeOffset += 0x10000 - delta; // case 1
         }
     }
 
     pStepper->encoderCount = curr;
+}
+
+StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_INVALID_ID;
+    }
+    if(p_buffer == NULL || p_status_length == NULL)
+    {
+        return STEPPER_NULL_PARAMETER;
+    }
+
+    uint8_t tmpByte;
+    uint8_t tmpInt;
+    volatile StepperData * pStepper = _steppers + (int)id;
+    
+    p_buffer[0] = (uint8_t)pStepper->state;
+
+    tmpByte = 0;
+    if(pStepper->isForward)
+        tmpByte |= 0x01;
+    if(pStepper->isEnabled)
+        tmpByte |= 0x02;
+    if(_is_stepper_at_end_boundary(pStepper))
+        tmpByte |= 0x04;
+    if(_is_stepper_at_home_boundary(pStepper))
+        tmpByte |= 0x08;
+    if(pStepper->isEnableHigh)
+        tmpByte |= 0x10;
+    if(pStepper->isForwardHigh)
+        tmpByte |= 0x20;
+    if(pStepper->isRisingEdgeDriven)
+        tmpByte |= 0x40;
+    p_buffer[1] = tmpByte;
+
+    tmpByte = 0;
+    if(pStepper->isPassiveStepsPopulated)
+        tmpByte |= 0x01;
+    if(pStepper->isRampdownPulseWidthsPopulated)
+        tmpByte |= 0x02;
+    if(pStepper->isCruisePulseWidthPopulated)
+        tmpByte |= 0x04;
+    if(pStepper->isRampupPuleseWidthsPopulated)
+        tmpByte |= 0x08;
+    p_buffer[2] = tmpByte;
+
+    tmpInt = pStepper->offset;
+    p_buffer[3] = tmpInt;
+    tmpInt >>= 8;
+    p_buffer[4] = tmpInt;
+    tmpInt >>=8;
+    p_buffer[5] = tmpInt;
+    tmpInt >>= 8;
+    p_buffer[6] = tmpInt;
+
+    tmpInt = pStepper->encodeOffset;
+    p_buffer[7] = tmpInt;
+    tmpInt >>= 8;
+    p_buffer[8] = tmpInt;
+    tmpInt >>=8;
+    p_buffer[9] = tmpInt;
+    tmpInt >>= 8;
+    p_buffer[10] = tmpInt;
+    
+    *p_status_length = 11;
+    
+    return STEPPER_OK;
 }
 
 static bool _is_stepper_in_sync(const volatile StepperData * const pStepper)
@@ -1069,8 +1142,8 @@ static bool _is_stepper_in_sync(const volatile StepperData * const pStepper)
     expectedPosition *= pStepper->countsPerRevolution;
     expectedPosition /= pStepper->stepsPerRevolution;
 
-    if(pStepper->actualPosition >= (expectedPosition - pStepper->maxPositionError) &&
-        pStepper->actualPosition <= (expectedPosition + pStepper->maxPositionError))
+    if(pStepper->encodeOffset >= (expectedPosition - pStepper->maxPositionError) &&
+        pStepper->encodeOffset <= (expectedPosition + pStepper->maxPositionError))
     {
         return true;
     }
@@ -1098,7 +1171,7 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
         return STEPPER_INVALID_ENCODER_ID;
     }
 
-    _update_stepper_position(pStepper);
+    _update_encoder_offset(pStepper);
     *pInSync = _is_stepper_in_sync(pStepper);
 
     return STEPPER_OK;
@@ -1171,7 +1244,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(volatile StepperData * con
         // first clock pulse has finished, check if stepper has arrived at the expected position
         if(pStepper->encoderId != ENCODER_INVALID_ID)
         {
-            _update_stepper_position(pStepper);
+            _update_encoder_offset(pStepper);
             bool inSync = _is_stepper_in_sync(pStepper);
             if(!inSync)
             {

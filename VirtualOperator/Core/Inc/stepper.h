@@ -223,6 +223,22 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
 StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pState);
 
 /**
+ * fill stepper status in the following format to p_buffer:
+ * 0:	stepper 0 state
+ * 1:	stepper 0 composite: isRisingEdgeDriven | isForwardHigh | isEnableHigh | homeBoundary | endBoundary | isEnabled | isForward
+ * 2: 	stepper 0 composite: isRampupPopulated | isCruisePopulated | isRampdownPopulated | isPassiveStepsPopulated
+ * 3: 	1/4 offset
+ * 4:	2/4 offset
+ * 5:	3/4 offset
+ * 6:	4/4 offset
+ * 7:	1/4 encoderOffset
+ * 8:	2/4 encoderOffset
+ * 9:	3/4 encoderOffset
+ * 10:	4/4 encoderOffset
+ */
+StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length);
+
+/**
  * check if stepper gets out of sync when it is NOT moving.
  */
 StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
