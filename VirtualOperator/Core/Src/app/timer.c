@@ -5,8 +5,6 @@
  *      Author: Mike
  */
 
-#include <stm32h7xx_hal_tim.h>
-
 #include "stm32h7xx_hal.h"
 #include "usart1.h"
 #include "timer.h"

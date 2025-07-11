@@ -748,7 +748,7 @@ StepperReturnCode stepper_set_passive_step_indexes(
     }
     if(length & 0x1)
     {
-        return STEPPER_INVALID_PULSE_LENGTH;
+        return STEPPER_INVALID_INDEX_LENGTH;
     }
     if(totalBatches < 1)
     {
@@ -1067,6 +1067,26 @@ static void _update_encoder_offset(volatile StepperData * const pStepper)
     pStepper->encoderCount = curr;
 }
 
+static bool _is_stepper_at_home_boundary(volatile StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
+static bool _is_stepper_at_end_boundary(volatile StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
 StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length)
 {
     if(id >= STEPPER_ID_COUNT)
@@ -1314,27 +1334,6 @@ static StepperReturnCode _on_stepper_pulse_end_active(volatile StepperData * con
 
     return STEPPER_OK;
 }
-
-static bool _is_stepper_at_home_boundary(volatile StepperData * const pStepper)
-{
-    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
-
-    if(state == GPIO_PIN_SET)
-        return true;
-    else
-        return false;
-}
-
-static bool _is_stepper_at_end_boundary(volatile StepperData * const pStepper)
-{
-    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
-
-    if(state == GPIO_PIN_SET)
-        return true;
-    else
-        return false;
-}
-
 
 static StepperReturnCode _on_stepper_pulse_end_to_home(volatile StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {

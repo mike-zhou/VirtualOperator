@@ -618,7 +618,7 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 		print_log("Error: too less active rampup pulse width: %d in %s\r\n", length, __FILE__);
 		return;
 	}
-	if(length & 0x1 != 0x0)
+	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
@@ -627,11 +627,11 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 	}
 
 	StepperId stepperId = (StepperId) p_cmd[1];
-	uint8_t batchIndex = p_cmd[2];
-	uint8_t totalBatches = p_cmd[3];
+	const uint8_t batchIndex = p_cmd[2];
+	const uint8_t totalBatches = p_cmd[3];
 
-	uint8_t * pPulseWidth = p_cmd + 4;
-	uint8_t widthLength = length - 4;
+	const uint8_t * const pPulseWidth = p_cmd + 4;
+	const uint8_t widthLength = length - 4;
 
 	StepperReturnCode result = stepper_set_active_rampup_pulse_widths(stepperId, pPulseWidth, widthLength, batchIndex, totalBatches);
 	if(result != STEPPER_OK)
@@ -713,7 +713,7 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 		print_log("Error: too less active rampdown pulse width: %d in %s\r\n", length, __FILE__);
 		return;
 	}
-	if(length & 0x1 != 0x0)
+	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
@@ -721,12 +721,12 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 		return;
 	}
 
-	StepperId stepperId = (StepperId) p_cmd[1];
-	uint8_t batchIndex = p_cmd[2];
-	uint8_t totalBatches = p_cmd[3];
+	const StepperId stepperId = (StepperId) p_cmd[1];
+	const uint8_t batchIndex = p_cmd[2];
+	const uint8_t totalBatches = p_cmd[3];
 
-	uint8_t * pPulseWidth = p_cmd + 4;
-	uint8_t widthLength = length - 4;
+	const uint8_t * const pPulseWidth = p_cmd + 4;
+	const uint8_t widthLength = length - 4;
 
 	StepperReturnCode result = stepper_set_active_rampdown_pulse_widths(stepperId, pPulseWidth, widthLength, batchIndex, totalBatches);
 	if(result != STEPPER_OK)
@@ -754,7 +754,7 @@ static void _on_set_stepper_passive_step_indexes(const uint8_t * p_cmd, const ui
 	 * 	 :	...
 	 * 	n: 	2/2 indexN
 	 */
-	_reply[0] = p_cmd;
+	_reply[0] = p_cmd[0];
 	if(length > 255)
 	{
 		_reply[1] = 1; 
@@ -769,7 +769,7 @@ static void _on_set_stepper_passive_step_indexes(const uint8_t * p_cmd, const ui
 		print_log("Error: too less indexes: %d in %s\r\n", length, __FILE__);
 		return;
 	}
-	if(length & 0x1 != 0x0)
+	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
