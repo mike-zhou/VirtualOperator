@@ -93,32 +93,32 @@ void timer_init_data_structure()
 	pTimer = _flexTimers;
 	pTimer->pTimerHandle = &htim12;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	pTimer = _flexTimers + 1;
 	pTimer->pTimerHandle = &htim13;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	pTimer = _flexTimers + 2;
 	pTimer->pTimerHandle = &htim14;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	pTimer = _flexTimers + 3;
 	pTimer->pTimerHandle = &htim15;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	pTimer = _flexTimers + 4;
 	pTimer->pTimerHandle = &htim16;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	pTimer = _flexTimers + 5;
 	pTimer->pTimerHandle = &htim17;
 	pTimer->stepperId = STEPPER_ID_INVALID;
-	pTimer->state = TIMER_IDLE;
+	pTimer->state = TIMER_STATE_IDLE;
 
 	// fix timer. A fix timer can drive multiple steppers.
 	_fixTimer.pTimerHandle = &hhrtim;
@@ -129,7 +129,7 @@ void timer_init_data_structure()
 		_fixTimer.steppers[i].stepperId = STEPPER_ID_INVALID;
 		_fixTimer.steppers[i].remainingPulseWidth = 0;
 	}
-	_fixTimer.state = TIMER_IDLE;
+	_fixTimer.state = TIMER_STATE_IDLE;
 
 	_maxFlexTimerIsrPeriod = 0;
 	_maxFixTimerIsrPeriod = 0;
@@ -139,26 +139,26 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 {
 	if(timerId >= TIMER_ID_COUNT)
 	{
-		return TIMER_INVALID_ID;
+		return TIMER_ERROR_INVALID_ID;
 	}
 	if(stepperId >= STEPPER_ID_COUNT)
 	{
-		return TIMER_INVALID_STEPPER_ID;
+		return TIMER_ERROR_INVALID_STEPPER_ID;
 	}
 	if(pulseWidth == 0)
 	{
-		return TIMER_INVALID_PULSE_WIDTH;
+		return TIMER_ERROR_INVALID_PULSE_WIDTH;
 	}
-	if(timerId < FIX_TIMER_ID && _flexTimers[timerId].state != TIMER_IDLE)
+	if(timerId < FIX_TIMER_ID && _flexTimers[timerId].state != TIMER_STATE_IDLE)
 	{
-		return TIMER_IS_RUNNING;
+		return TIMER_ERROR_ALREADY_RUNNING;
 	}
 
 	bool stepperIsRunning = false;
 	for(int i=0; i<(int)FIX_TIMER_ID; i++)
 	{
 		FlexTimer * pTimer = _flexTimers + i;
-		if(pTimer->state != TIMER_BUSY)
+		if(pTimer->state != TIMER_STATE_BUSY)
 		{
 			continue;
 		}
@@ -170,10 +170,10 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	}
 	if(stepperIsRunning)
 	{
-		return TIMER_STEPPER_DRIVEN_BY_OTHER;
+		return TIMER_ERROR_STEPPER_DRIVEN_BY_OTHER;
 	}
 
-	if(_fixTimer.state == TIMER_BUSY)
+	if(_fixTimer.state == TIMER_STATE_BUSY)
 	{
 		for(int i=0; i<(int)STEPPER_ID_COUNT; i++)
 		{
@@ -186,7 +186,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	}
 	if(stepperIsRunning)
 	{
-		return TIMER_STEPPER_DRIVEN_BY_OTHER;
+		return TIMER_ERROR_STEPPER_DRIVEN_BY_OTHER;
 	}
 
 	if(timerId == FIX_TIMER_ID)
@@ -195,15 +195,15 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 		_fixTimer.steppers[stepperId].firstPulseSkipped = false;
 		_fixTimer.steppers[stepperId].stepperId = stepperId; // indicate the stepper is being clocked
 		
-		if(_fixTimer.state == TIMER_IDLE)
+		if(_fixTimer.state == TIMER_STATE_IDLE)
 		{
-			_fixTimer.state = TIMER_BUSY;
+			_fixTimer.state = TIMER_STATE_BUSY;
 			HAL_StatusTypeDef rc = HAL_HRTIM_SimpleBaseStart_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
 			if(rc != HAL_OK)
 			{
-				_fixTimer.state = TIMER_IDLE;
+				_fixTimer.state = TIMER_STATE_IDLE;
 				print_log("Error: timer_start(), failed to start fix timer, rc: %d\r\n", rc);
-				return TIMER_INTERNAL_FAILURE;
+				return TIMER_ERROR_INTERNAL_FAILURE;
 			}
 		}
 
@@ -213,14 +213,14 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	_flexTimers[timerId].stepperId = stepperId;
 	__HAL_TIM_SET_AUTORELOAD(_flexTimers[timerId].pTimerHandle, pulseWidth);
 	__HAL_TIM_SET_COUNTER(_flexTimers[timerId].pTimerHandle, 1);
-	_flexTimers[timerId].state = TIMER_BUSY;
+	_flexTimers[timerId].state = TIMER_STATE_BUSY;
 	HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(_flexTimers[timerId].pTimerHandle);
 	if(rc != HAL_OK)
 	{
-		_flexTimers[timerId].state = TIMER_IDLE;
+		_flexTimers[timerId].state = TIMER_STATE_IDLE;
 		_flexTimers[timerId].stepperId = STEPPER_ID_INVALID;
 		print_log("Error: timer_start(), failed to start timer: %d, rc: %d\r\n", timerId, rc);
-		return TIMER_INTERNAL_FAILURE;
+		return TIMER_ERROR_INTERNAL_FAILURE;
 	}
 
 	return TIMER_OK;	
@@ -228,7 +228,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 
 static void _stop_fix_timer()
 {
-	_fixTimer.state = TIMER_IDLE;
+	_fixTimer.state = TIMER_STATE_IDLE;
 	HAL_HRTIM_SimpleBaseStop_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
 	
 	for(int i=0; i<STEPPER_ID_COUNT; i++)
@@ -243,7 +243,7 @@ static void _stop_flex_timer(const TimerId timerId)
 	{
 		return;
 	}
-	_flexTimers[timerId].state = TIMER_IDLE;
+	_flexTimers[timerId].state = TIMER_STATE_IDLE;
 	HAL_TIM_Base_Stop_IT(_flexTimers[timerId].pTimerHandle);
 	_flexTimers[timerId].stepperId = STEPPER_ID_INVALID;
 }
@@ -252,23 +252,23 @@ TimerReturnCode timer_stop(const TimerId timerId)
 {
 	if(timerId >= TIMER_ID_COUNT)
 	{
-		return TIMER_INVALID_ID;
+		return TIMER_ERROR_INVALID_ID;
 	}
 
 	if(timerId == FIX_TIMER_ID)
 	{
-		if(_fixTimer.state != TIMER_BUSY)
+		if(_fixTimer.state != TIMER_STATE_BUSY)
 		{
-			return TIMER_WRONG_STATE;
+			return TIMER_ERROR_WRONG_STATE;
 		}
 		_stop_fix_timer();
 		
 		return TIMER_OK;
 	}
 
-	if(_flexTimers[timerId].state != TIMER_BUSY)
+	if(_flexTimers[timerId].state != TIMER_STATE_BUSY)
 	{
-		return TIMER_WRONG_STATE;
+		return TIMER_ERROR_WRONG_STATE;
 	}
 	_stop_flex_timer(timerId);
 
@@ -293,7 +293,7 @@ TimerReturnCode timer_set_prescaler(const TimerId timerId, const uint16_t presca
 			return TIMER_OK;
 
 		default:
-			return TIMER_INVALID_ID;
+			return TIMER_ERROR_INVALID_ID;
 	}
 }
 
@@ -301,7 +301,7 @@ TimerReturnCode timer_get_prescaler(const TimerId timerId, uint16_t * const pPre
 {
 	if(pPrescaler == NULL)
 	{
-		return TIMER_NULL_PARAMETER;
+		return TIMER_ERROR_NULL_PARAMETER;
 	}
 
 	switch(timerId)
@@ -320,7 +320,7 @@ TimerReturnCode timer_get_prescaler(const TimerId timerId, uint16_t * const pPre
 			return TIMER_OK;
 
 		default:
-			return TIMER_INVALID_ID;
+			return TIMER_ERROR_INVALID_ID;
 	}
 }
 
@@ -328,11 +328,11 @@ TimerReturnCode timer_get_state(const TimerId timerId, TimerState * const pState
 {
 	if(timerId >= TIMER_ID_COUNT)
 	{
-		return TIMER_INVALID_ID;
+		return TIMER_ERROR_INVALID_ID;
 	}
 	if(pState == NULL)
 	{
-		return TIMER_NULL_PARAMETER;
+		return TIMER_ERROR_NULL_PARAMETER;
 	}
 
 	if(timerId == FIX_TIMER_ID)
@@ -370,7 +370,7 @@ static void _on_flex_timer(const TimerId timerId)
 {
 	FlexTimer * pTimer = _flexTimers + timerId;
 
-	if(pTimer->state != TIMER_BUSY)
+	if(pTimer->state != TIMER_STATE_BUSY)
 	{
 		return;
 	}
@@ -440,7 +440,7 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 	{
 		return;
 	}
-	if(_fixTimer.state != TIMER_BUSY)
+	if(_fixTimer.state != TIMER_STATE_BUSY)
 	{
 		return;
 	}
