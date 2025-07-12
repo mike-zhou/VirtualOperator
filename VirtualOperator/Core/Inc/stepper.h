@@ -205,8 +205,8 @@ StepperReturnCode stepper_set_controls(
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
-    const uint16_t countsPerRevolution,
-    const uint16_t maxPositionError
+    const uint16_t encoderCountsPerRevolution,
+    const uint16_t encoderOffsetErrorThreshold
 );
 
 StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);

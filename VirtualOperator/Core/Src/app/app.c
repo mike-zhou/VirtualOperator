@@ -887,9 +887,9 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 	countsPerEncoderRound <<= 8;
 	countsPerEncoderRound += p_cmd[24];
 
-	uint16_t maxPositionError = p_cmd[27];
-	maxPositionError <<= 8;
-	maxPositionError += p_cmd[26];
+	uint16_t encoderOffsetErrorThreshold = p_cmd[27];
+	encoderOffsetErrorThreshold <<= 8;
+	encoderOffsetErrorThreshold += p_cmd[26];
 
 	_reply[0] = p_cmd[0];
 
@@ -972,7 +972,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		return;
 	}
 
-	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d,	portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, maxPositionError: %d\r\n", 
+	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d,	portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, encoderOffsetErrorThreshold: %d\r\n", 
 		stepperId, 
 		isRisingEdgeDriven,
 		isForwardHigh,
@@ -992,7 +992,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		stepsPerRound,
 		encoderId,
 		countsPerEncoderRound,
-		maxPositionError);
+		encoderOffsetErrorThreshold);
 	
 	GPIO_TypeDef * pPortHomeBoundary = 	_get_gpio_port_ptr(portIndexHomeBoundary);
 	GPIO_TypeDef * pPortEndBoundary = 	_get_gpio_port_ptr(portIndexEndBoundary);
@@ -1020,7 +1020,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		stepsPerRound,
 		encoderId,
 		countsPerEncoderRound,
-		maxPositionError);
+		encoderOffsetErrorThreshold);
 
 	if(result == STEPPER_OK)
 	{
@@ -1497,6 +1497,15 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	}
 }
 
+void on_stepper_out_of_sync_interrupt()
+{
+
+}
+
+void on_stepper_out_of_scope_interrupt()
+{
+
+}
 
 void poll_app(void)
 {

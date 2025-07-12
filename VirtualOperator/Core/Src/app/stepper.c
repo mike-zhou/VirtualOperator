@@ -5,9 +5,10 @@
  *      Author: mike
  */
 
+#include <stdlib.h>
+
 #include "stepper.h"
 #include "usart1.h"
-
 
 #define MAX_UINT16_ARRAY_LENGTH 4096
 #define MAX_RAMP_CLOCKS (MAX_UINT16_ARRAY_LENGTH >> 1)
@@ -41,8 +42,8 @@ typedef struct _Stepper
     uint32_t range;
     uint16_t stepsPerRevolution;
     EncoderId encoderId;
-    uint16_t countsPerRevolution;
-    uint16_t maxPositionError;
+    uint16_t encoderCountsPerRevolution;
+    uint16_t encoderOffsetErrorThreshold;
     bool isStepperControlInitialized;
 
     // uint16_t data array
@@ -157,8 +158,25 @@ static StepperReturnCode _on_active_stepper_pulse_end(
             return STEPPER_MISSED_ACTIVE_PULSE;
         }
 
+        if(_is_stepper_at_end_boundary(pPassive) || _is_stepper_at_home_boundary(pPassive))
+        {
+            on_stepper_out_of_scope_interrupt();
+            return STEPPER_OUT_OF_RANGE;
+        }
+
         if(activePulseState == FIRST_HALF)
         {
+            if(pPassive->encoderId != ENCODER_INVALID_ID)
+            {
+                _update_encoder_offset(pPassive);
+                bool inSync = _is_stepper_in_sync(pPassive);
+                if(!inSync)
+                {
+                    on_stepper_out_of_sync_interrupt();
+                    pPassive->state = STEPPER_OUT_OF_SYNC;
+                    return STEPPER_UN_SYNC;
+                }
+            }
             _set_clock_pulse_level_second(pPassive);
         }
         else
@@ -296,8 +314,8 @@ StepperReturnCode stepper_set_controls(
     const uint32_t range,
     const uint16_t stepsPerRevolution,
     const EncoderId encoderId,
-    const uint16_t countsPerRevolution,
-    const uint16_t maxPositionError)
+    const uint16_t encoderCountsPerRevolution,
+    const uint16_t encoderOffsetErrorThreshold)
 {
     if(id >= STEPPER_ID_COUNT)
     {
@@ -331,11 +349,11 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_INVALID_ENCODER_ID;
     }
-    if(stepsPerRevolution == 0 || countsPerRevolution == 0)
+    if(stepsPerRevolution == 0 || encoderCountsPerRevolution == 0)
     {
         return STEPPER_INVALID_CONTROL_PARAMETER;
     }
-    if(maxPositionError < 1)
+    if(encoderOffsetErrorThreshold < 1)
     {
         return STEPPER_INVALID_CONTROL_PARAMETER;
     }
@@ -363,8 +381,8 @@ StepperReturnCode stepper_set_controls(
     pStepper->range = range;
     pStepper->stepsPerRevolution = stepsPerRevolution;
     pStepper->encoderId = encoderId;
-    pStepper->countsPerRevolution = countsPerRevolution;
-    pStepper->maxPositionError = maxPositionError;
+    pStepper->encoderCountsPerRevolution = encoderCountsPerRevolution;
+    pStepper->encoderOffsetErrorThreshold = encoderOffsetErrorThreshold;
     pStepper->isStepperControlInitialized = true;
 
     if(!_is_static_data_initialized(id))
@@ -1157,13 +1175,13 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
 
 static bool _is_stepper_in_sync(const StepperData * const pStepper)
 {
-    // expectedPosition = offset * (countsPerRevolution / stepsPerRevolution)
-    int64_t expectedPosition = pStepper->offset;
-    expectedPosition *= pStepper->countsPerRevolution;
-    expectedPosition /= pStepper->stepsPerRevolution;
+    // expectedEncoderPosition = offset * (encoderCountsPerRevolution / stepsPerRevolution)
+    int64_t expectedEncoderPosition = pStepper->offset;
+    expectedEncoderPosition *= pStepper->encoderCountsPerRevolution;
+    expectedEncoderPosition /= pStepper->stepsPerRevolution;
 
-    if(pStepper->encodeOffset >= (expectedPosition - pStepper->maxPositionError) &&
-        pStepper->encodeOffset <= (expectedPosition + pStepper->maxPositionError))
+    if(pStepper->encodeOffset >= (expectedEncoderPosition - pStepper->encoderOffsetErrorThreshold) &&
+        pStepper->encodeOffset <= (expectedEncoderPosition + pStepper->encoderOffsetErrorThreshold))
     {
         return true;
     }
@@ -1268,6 +1286,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             bool inSync = _is_stepper_in_sync(pStepper);
             if(!inSync)
             {
+                on_stepper_out_of_sync_interrupt();
                 *pNextPulseWidth = 0;
                 pStepper->state = STEPPER_OUT_OF_SYNC;
                 return STEPPER_UN_SYNC;
@@ -1423,6 +1442,7 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
         if(_is_stepper_at_home_boundary(pStepper) ||
             _is_stepper_at_end_boundary(pStepper))
         {
+            on_stepper_out_of_scope_interrupt();
             *pNextPulseWidth = 0;
             return STEPPER_OUT_OF_RANGE;
         }
