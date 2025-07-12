@@ -470,6 +470,7 @@ static uint8_t _fill_stepper_data(uint8_t * const p_buffer)
 	 * 8:	2/4 encoderOffset
 	 * 9:	3/4 encoderOffset
 	 * 10:	4/4 encoderOffset
+	 * 11: 	maxEncoderOffsetError
 	 */
 
 	uint8_t consumed = 0;
@@ -576,7 +577,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 
 	consumed = _fill_stepper_data(_reply + amount);
 	amount += consumed;
-	if(consumed != 110)
+	if(consumed != 120)
 	{
 		print_log("Error: wrong amount of timer data in %s\r\n", __FILE__);
 		_reply[1] = 4;
@@ -584,7 +585,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 		return;
 	}
 	// _reply += stepper data
-	// amount: 179
+	// amount: 189
 
 	send_peer_message(_reply, amount);
 }

@@ -83,6 +83,7 @@ typedef struct _Stepper
 
     int32_t encodeOffset;
     uint16_t encoderCount;
+    uint8_t maxEncoderOffsetError;
 
     uint32_t stepsToRun;
     uint32_t currentStep;
@@ -283,6 +284,7 @@ void stepper_init_data_structure()
         pStepper->offset = 0;
         pStepper->encodeOffset = 0;
         pStepper->encoderCount = 0;
+        pStepper->maxEncoderOffsetError = 0;
         pStepper->stepsToRun = 0;
         pStepper->currentStep = 0;
         pStepper->pulseState = FIRST_HALF;
@@ -1167,21 +1169,29 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     p_buffer[9] = tmpInt;
     tmpInt >>= 8;
     p_buffer[10] = tmpInt;
+
+    p_buffer[11] = pStepper->maxEncoderOffsetError;
     
-    *p_status_length = 11;
+    *p_status_length = 12;
     
     return STEPPER_OK;
 }
 
-static bool _is_stepper_in_sync(const StepperData * const pStepper)
+static bool _is_stepper_in_sync(StepperData * const pStepper)
 {
     // expectedEncoderPosition = offset * (encoderCountsPerRevolution / stepsPerRevolution)
     int64_t expectedEncoderPosition = pStepper->offset;
     expectedEncoderPosition *= pStepper->encoderCountsPerRevolution;
     expectedEncoderPosition /= pStepper->stepsPerRevolution;
+    
+    int32_t error = abs(pStepper->encodeOffset - expectedEncoderPosition);
 
-    if(pStepper->encodeOffset >= (expectedEncoderPosition - pStepper->encoderOffsetErrorThreshold) &&
-        pStepper->encodeOffset <= (expectedEncoderPosition + pStepper->encoderOffsetErrorThreshold))
+    if(error > pStepper->maxEncoderOffsetError)
+    {
+        pStepper->maxEncoderOffsetError = (uint8_t)error;
+    }
+
+    if(error >=pStepper->encoderOffsetErrorThreshold)
     {
         return true;
     }

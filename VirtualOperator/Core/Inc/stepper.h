@@ -235,6 +235,7 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
  * 8:	2/4 encoderOffset
  * 9:	3/4 encoderOffset
  * 10:	4/4 encoderOffset
+ * 11:  maxEncoderOffsetError
  */
 StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length);
 
