@@ -18,7 +18,7 @@ typedef enum _PulseState
     SECOND_HALF         
 } PulseState;
 
- typedef struct _Stepper
+typedef struct _Stepper
 {
     /**
      * static data
@@ -49,13 +49,13 @@ typedef enum _PulseState
     uint16_t uint16Array[MAX_UINT16_ARRAY_LENGTH];
 
     // array of pulse width for the stepper to speed up from still to cruising
-    volatile uint16_t * pRampupPulseWidths;
+    uint16_t * pRampupPulseWidths;
     // length of widthRampUp
     uint32_t rampupPulses;
     bool isRampupPuleseWidthsPopulated;
 
     // array of pulse width for the stepper to slow down from curising to still
-    volatile uint16_t * pRampdownPulseWidths;
+    uint16_t * pRampdownPulseWidths;
     // length of widthRampDown
     uint32_t rampdownPulses;
     bool isRampdownPulseWidthsPopulated;
@@ -65,7 +65,7 @@ typedef enum _PulseState
     bool isCruisePulseWidthPopulated;
 
     // indexes for passive steppers coupled 
-    volatile uint16_t * pPassiveStepArray;
+    uint16_t * pPassiveStepArray;
     uint32_t passiveStepsCount;
     uint32_t passiveStepIndex;
     bool isPassiveStepsPopulated;
@@ -95,9 +95,9 @@ typedef enum _PulseState
     bool passiveCoupled;
 } StepperData;
 
-static volatile StepperData _steppers[STEPPER_ID_COUNT];
+static StepperData _steppers[STEPPER_ID_COUNT];
 
-static void _set_clock_pulse_level_first(volatile StepperData * const pStepper)
+static void _set_clock_pulse_level_first(StepperData * const pStepper)
 {
     GPIO_PinState pinState = GPIO_PIN_SET;
 
@@ -109,7 +109,7 @@ static void _set_clock_pulse_level_first(volatile StepperData * const pStepper)
     HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
 }
 
-static void _set_clock_pulse_level_second(volatile StepperData * const pStepper)
+static void _set_clock_pulse_level_second(StepperData * const pStepper)
 {
     GPIO_PinState pinState = GPIO_PIN_RESET;
 
@@ -137,7 +137,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
         return STEPPER_INVALID_ID;
     }
     
-    volatile StepperData * pPassive = _steppers + (int)passiveStepperId;
+    StepperData * pPassive = _steppers + (int)passiveStepperId;
 
     if(pPassive->state == STEPPER_RUNNING_PASSIVE)
     {
@@ -178,7 +178,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
     return STEPPER_WRONG_STATE;
 }
 
-static StepperReturnCode _notify_passive_steppers(volatile StepperData * const pStepper)
+static StepperReturnCode _notify_passive_steppers(StepperData * const pStepper)
 {
     if(pStepper->passiveCoupled == false)
     {
@@ -201,7 +201,7 @@ static StepperReturnCode _notify_passive_steppers(volatile StepperData * const p
             return rc;
         }
 
-        volatile StepperData * pPassive = _steppers + (int)passiveStepperId;
+        StepperData * pPassive = _steppers + (int)passiveStepperId;
         if(pPassive->state == STEPPER_READY)
         {
             // decouple passive stepper
@@ -224,7 +224,7 @@ static StepperReturnCode _notify_passive_steppers(volatile StepperData * const p
 
 static uint16_t _is_static_data_initialized(StepperId id)
 {
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(!pStepper->isStepperControlInitialized)
     {
@@ -250,7 +250,7 @@ void stepper_init_data_structure()
 {
     for(uint8_t stepperIndex=0; stepperIndex<STEPPER_ID_COUNT; stepperIndex++)
     {
-        volatile StepperData * pStepper = _steppers + stepperIndex;
+        StepperData * pStepper = _steppers + stepperIndex;
 
         // static data
         pStepper->isStepperControlInitialized = false;
@@ -340,7 +340,7 @@ StepperReturnCode stepper_set_controls(
         return STEPPER_INVALID_CONTROL_PARAMETER;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_UNINITIALIZED)
     {
@@ -376,7 +376,7 @@ StepperReturnCode stepper_set_controls(
     return STEPPER_OK;
 }
 
-static void _stepper_set_forward(volatile StepperData * const pStepper, const bool isForward)
+static void _stepper_set_forward(StepperData * const pStepper, const bool isForward)
 {
     GPIO_PinState pinState;
 
@@ -406,7 +406,7 @@ StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_INITIALIZED &&
         pStepper->state != STEPPER_READY)
@@ -441,7 +441,7 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_INITIALIZED &&
         pStepper->state != STEPPER_READY)
@@ -478,7 +478,7 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
 
 static void _reset_active_stepper_pulses(const StepperId id)
 {
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     pStepper->pRampdownPulseWidths = pStepper->uint16Array;
     pStepper->rampupPulses = 0;
@@ -531,7 +531,7 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
         return STEPPER_WRONG_BATCH_INDEX;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
     {
@@ -594,7 +594,7 @@ StepperReturnCode stepper_set_active_cruise_pulse_width(
         return STEPPER_WRONG_PULSE_WIDTH;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
     {
@@ -655,7 +655,7 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
         return STEPPER_WRONG_BATCH_INDEX;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
     {
@@ -709,7 +709,7 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
 
 static void _reset_passive_stepper_pulses(const StepperId id)
 {
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     pStepper->pRampdownPulseWidths = NULL;
     pStepper->rampupPulses = 0;
@@ -762,7 +762,7 @@ StepperReturnCode stepper_set_passive_step_indexes(
     }
 
     const uint8_t count = length >> 1;
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
     {
@@ -834,7 +834,7 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_INITIALIZED)
     {
@@ -874,7 +874,7 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_READY)
     {
@@ -927,8 +927,8 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pActive = _steppers + (int)activeStepperId;
-    volatile StepperData * pPassive = _steppers + (int)passiveStepperId;
+    StepperData * pActive = _steppers + (int)activeStepperId;
+    StepperData * pPassive = _steppers + (int)passiveStepperId;
 
     if(pActive->state != STEPPER_RUNNING_ACTIVE)
     {
@@ -947,7 +947,7 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     bool coupled = false;
     for(int i = 0; i < (int)STEPPER_ID_COUNT; i++)
     {
-        volatile StepperData * pStepper = _steppers + i;
+        StepperData * pStepper = _steppers + i;
         if(pStepper->passiveCoupled)
         {
             for(int j = 0; j < (int)STEPPER_ID_COUNT; j++)
@@ -987,7 +987,7 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
         return STEPPER_ID_INVALID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_INITIALIZED)
     {
@@ -1013,14 +1013,14 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
         return STEPPER_NULL_PARAMETER;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     *pState = pStepper->state;
 
     return STEPPER_OK;
 }
 
-static void _update_encoder_offset(volatile StepperData * const pStepper)
+static void _update_encoder_offset(StepperData * const pStepper)
 {
     if(pStepper->encoderId == ENCODER_INVALID_ID)
     {
@@ -1067,7 +1067,7 @@ static void _update_encoder_offset(volatile StepperData * const pStepper)
     pStepper->encoderCount = curr;
 }
 
-static bool _is_stepper_at_home_boundary(volatile StepperData * const pStepper)
+static bool _is_stepper_at_home_boundary(StepperData * const pStepper)
 {
     GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
 
@@ -1077,7 +1077,7 @@ static bool _is_stepper_at_home_boundary(volatile StepperData * const pStepper)
         return false;
 }
 
-static bool _is_stepper_at_end_boundary(volatile StepperData * const pStepper)
+static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
 {
     GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
 
@@ -1100,7 +1100,7 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
 
     uint8_t tmpByte;
     uint8_t tmpInt;
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
     
     p_buffer[0] = (uint8_t)pStepper->state;
 
@@ -1155,7 +1155,7 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     return STEPPER_OK;
 }
 
-static bool _is_stepper_in_sync(const volatile StepperData * const pStepper)
+static bool _is_stepper_in_sync(const StepperData * const pStepper)
 {
     // expectedPosition = offset * (countsPerRevolution / stepsPerRevolution)
     int64_t expectedPosition = pStepper->offset;
@@ -1180,7 +1180,7 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
         return STEPPER_INVALID_ID;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state != STEPPER_READY)
     {
@@ -1208,7 +1208,7 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
         return STEPPER_NULL_PARAMETER;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     switch(pStepper->state)
     {
@@ -1226,7 +1226,7 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
     }
 }
 
-static StepperReturnCode _on_stepper_pulse_end_force(volatile StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+static StepperReturnCode _on_stepper_pulse_end_force(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {
     if(pStepper->pulseState == FIRST_HALF)
     {
@@ -1257,7 +1257,7 @@ static StepperReturnCode _on_stepper_pulse_end_force(volatile StepperData * cons
     return STEPPER_OK;
 }
 
-static StepperReturnCode _on_stepper_pulse_end_active(volatile StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {
     if(pStepper->pulseState == FIRST_HALF)
     {
@@ -1335,7 +1335,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(volatile StepperData * con
     return STEPPER_OK;
 }
 
-static StepperReturnCode _on_stepper_pulse_end_to_home(volatile StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+static StepperReturnCode _on_stepper_pulse_end_to_home(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {
     if(pStepper->pulseState == FIRST_HALF)
     {
@@ -1365,7 +1365,7 @@ static StepperReturnCode _on_stepper_pulse_end_to_home(volatile StepperData * co
     return STEPPER_OK;
 }
 
-static StepperReturnCode _on_stepper_pulse_end_home_to_ready(volatile StepperData * const pStepper, uint16_t * const pNextPulseWidth)
+static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {
     if(pStepper->pulseState == FIRST_HALF)
     {
@@ -1412,7 +1412,7 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
         return STEPPER_NULL_PARAMETER;
     }
 
-    volatile StepperData * pStepper = _steppers + (int)id;
+    StepperData * pStepper = _steppers + (int)id;
 
     if(pStepper->state == STEPPER_RUNNING_ACTIVE)
     {

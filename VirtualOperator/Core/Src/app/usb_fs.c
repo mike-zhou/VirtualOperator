@@ -15,16 +15,16 @@
 #define USB_FS_SENDING_BUFFER_SIZE 4096
 #define USB_FS_RECEIVING_BUFFER_SIZE 4096
 
-static volatile uint8_t _sending_buffer[USB_FS_SENDING_BUFFER_SIZE];
-static volatile uint8_t _receiving_buffer[USB_FS_RECEIVING_BUFFER_SIZE];
+static uint8_t _sending_buffer[USB_FS_SENDING_BUFFER_SIZE];
+static uint8_t _receiving_buffer[USB_FS_RECEIVING_BUFFER_SIZE];
 
-static volatile CircularBuffer _cb_sending;
-static volatile CircularBuffer _cb_receiving;
+static CircularBuffer _cb_sending;
+static CircularBuffer _cb_receiving;
 
-static volatile bool _usb_fs_initialized = false;
+static bool _usb_fs_initialized = false;
 
-static volatile bool _cb_receiving_overflow = false;
-static volatile bool _is_sending = false;
+static bool _cb_receiving_overflow = false;
+static bool _is_sending = false;
 
 
 static void _start_sending()

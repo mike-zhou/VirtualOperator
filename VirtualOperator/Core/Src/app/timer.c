@@ -45,11 +45,11 @@ typedef struct
 	} steppers[STEPPER_ID_COUNT];
 } FixTimer;
 
-static volatile FlexTimer _flexTimers[FLEX_TIMER_COUNT];
-static volatile FixTimer _fixTimer;
+static FlexTimer _flexTimers[FLEX_TIMER_COUNT];
+static FixTimer _fixTimer;
 
-static volatile uint16_t _maxFlexTimerIsrPeriod;
-static volatile uint16_t _maxFixTimerIsrPeriod;
+static uint16_t _maxFlexTimerIsrPeriod;
+static uint16_t _maxFixTimerIsrPeriod;
 
 static inline uint32_t _get_fix_timer_interval_ns(void)
 {
@@ -87,7 +87,7 @@ static inline uint32_t _get_fix_timer_interval_ns(void)
 
 void timer_init_data_structure()
 {
-	volatile FlexTimer * pTimer;
+	FlexTimer * pTimer;
 	
 	// flex timers. A flex timer can drive only 1 stepper.
 	pTimer = _flexTimers;
@@ -157,7 +157,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	bool stepperIsRunning = false;
 	for(int i=0; i<(int)FIX_TIMER_ID; i++)
 	{
-		volatile FlexTimer * pTimer = _flexTimers + i;
+		FlexTimer * pTimer = _flexTimers + i;
 		if(pTimer->state != TIMER_BUSY)
 		{
 			continue;
@@ -368,7 +368,7 @@ void timer_on_emergency()
 
 static void _on_flex_timer(const TimerId timerId)
 {
-	volatile FlexTimer * pTimer = _flexTimers + timerId;
+	FlexTimer * pTimer = _flexTimers + timerId;
 
 	if(pTimer->state != TIMER_BUSY)
 	{
@@ -449,7 +449,7 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 	
 	for(int i=0; i<STEPPER_ID_COUNT; i++)
 	{
-		volatile struct Stepper * pStepper = _fixTimer.steppers + i;
+		struct Stepper * pStepper = _fixTimer.steppers + i;
 
 		if(pStepper->stepperId == STEPPER_ID_INVALID)
 		{

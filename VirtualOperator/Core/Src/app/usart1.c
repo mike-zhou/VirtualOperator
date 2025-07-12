@@ -17,16 +17,16 @@
 
 extern UART_HandleTypeDef huart1;
 
-static volatile uint8_t  _sending_buffer[SENDING_BUFFER_LENGTH];
-static volatile bool _sending_done = true;
+static uint8_t  _sending_buffer[SENDING_BUFFER_LENGTH];
+static bool _sending_done = true;
 
-static volatile uint8_t  _receiving_buffer[SENDING_BUFFER_LENGTH];
-static volatile bool _receiving_started = false;
-static volatile uint8_t _receiving_cache;
+static uint8_t  _receiving_buffer[SENDING_BUFFER_LENGTH];
+static bool _receiving_started = false;
+static uint8_t _receiving_cache;
 
-static volatile CircularBuffer _cbuffer_sending;
-static volatile CircularBuffer _cbuffer_receiving;
-static volatile bool _cbuffer_initialized = false;
+static CircularBuffer _cbuffer_sending;
+static CircularBuffer _cbuffer_receiving;
+static bool _cbuffer_initialized = false;
 
 // this function can be called in interrupt or non-interrupt
 static bool _start_sending()
