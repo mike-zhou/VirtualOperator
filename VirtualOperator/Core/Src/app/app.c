@@ -12,6 +12,7 @@
 #include "host_command.h"
 #include "encoder.h"
 #include "timer.h"
+#include "position_detector.h"
 
 extern uint32_t mainLoopCount;
 
@@ -516,7 +517,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	amount += consumed;
 	if(consumed != 22)
 	{
-		print_log("Error: wrong amount of gpio values in %s\r\n", __FILE__);
+		print_log("Error: wrong amount of gpio values in %s\r\n", __FUNCTION__);
 		_reply[1] = 1;
 		send_peer_message(_reply, 2);
 		return;
@@ -528,7 +529,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	amount += consumed;
 	if(consumed != 16)
 	{
-		print_log("Error: wrong amount of encoder values in %s\r\n", __FILE__);
+		print_log("Error: wrong amount of encoder values in %s\r\n", __FUNCTION__);
 		_reply[1] = 2;
 		send_peer_message(_reply, 2);
 		return;
@@ -567,7 +568,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	amount += consumed;
 	if(consumed != 21)
 	{
-		print_log("Error: wrong amount of timer data in %s\r\n", __FILE__);
+		print_log("Error: wrong amount of timer data in %s\r\n", __FUNCTION__);
 		_reply[1] = 3;
 		send_peer_message(_reply, 2);
 		return;
@@ -579,7 +580,7 @@ static void _on_get_status(const uint8_t * p_cmd, const uint16_t length)
 	amount += consumed;
 	if(consumed != 120)
 	{
-		print_log("Error: wrong amount of timer data in %s\r\n", __FILE__);
+		print_log("Error: wrong amount of timer data in %s\r\n", __FUNCTION__);
 		_reply[1] = 4;
 		send_peer_message(_reply, 2);
 		return;
@@ -609,21 +610,21 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too many active rampup pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too many active rampup pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if(length <= 4)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too less active rampup pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too less active rampup pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: wrongly aligned rampup pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: wrongly aligned rampup pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -638,7 +639,7 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 4;
-		print_log("Error: stepper_set_active_rampup_pulse_widths failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_active_rampup_pulse_widths failure: %d in %s\r\n", result, __FUNCTION__);
 	}
 	else
 	{
@@ -662,7 +663,7 @@ static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, con
 	{
 		_reply[1] = 1;
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length in _on_set_stepper_active_cruise_pulse_width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length in _on_set_stepper_active_cruise_pulse_width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -676,7 +677,7 @@ static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, con
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 2;
-		print_log("Error: stepper_set_active_cruise_pulse_width failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_active_cruise_pulse_width failure: %d in %s\r\n", result, __FUNCTION__);
 	}
 	else
 	{
@@ -704,21 +705,21 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too many active rampdown pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too many active rampdown pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if(length <= 4)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too less active rampdown pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too less active rampdown pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: wrongly aligned rampdown pulse width: %d in %s\r\n", length, __FILE__);
+		print_log("Error: wrongly aligned rampdown pulse width: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -733,7 +734,7 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 4;
-		print_log("Error: stepper_set_active_rampdown_pulse_widths failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_active_rampdown_pulse_widths failure: %d in %s\r\n", result, __FUNCTION__);
 	}
 	else
 	{
@@ -760,21 +761,21 @@ static void _on_set_stepper_passive_step_indexes(const uint8_t * p_cmd, const ui
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too many indexes: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too many indexes: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if(length <= 4)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: too less indexes: %d in %s\r\n", length, __FILE__);
+		print_log("Error: too less indexes: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 	if((length & 0x1) != 0x0)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: wrongly aligned indexes: %d in %s\r\n", length, __FILE__);
+		print_log("Error: wrongly aligned indexes: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -787,7 +788,7 @@ static void _on_set_stepper_passive_step_indexes(const uint8_t * p_cmd, const ui
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 4;
-		print_log("Error: stepper_set_passive_step_indexes failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_passive_step_indexes failure: %d in %s\r\n", result, __FUNCTION__);
 	}
 	else
 	{
@@ -812,7 +813,7 @@ static GPIO_TypeDef * _get_gpio_port_ptr(uint8_t port_index)
 		case 10: return GPIOJ;
 		case 11: return GPIOK;
 		default: 
-			print_log("Error: invalid port index in _get_gpio_port_ptr() in %s\r\n", __FILE__);
+			print_log("Error: invalid port index in _get_gpio_port_ptr() in %s\r\n", __FUNCTION__);
 			return NULL;
 	}
 }
@@ -1029,7 +1030,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 	}
 	else
 	{
-		print_log("Error: stepper_set_controls() failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_controls() failure: %d in %s\r\n", result, __FUNCTION__);
 		_reply[1] = 13;
 	}
 	send_peer_message(_reply, 2);
@@ -1055,7 +1056,7 @@ static void _on_set_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
 	}
 	else
 	{
-		print_log("Error: stepper_set_enable() failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_enable() failure: %d in %s\r\n", result, __FUNCTION__);
 		_reply[1] = 1;
 	}
 	send_peer_message(_reply, 2);
@@ -1081,7 +1082,7 @@ static void _on_set_stepper_forward(const uint8_t * p_cmd, const uint16_t length
 	}
 	else
 	{
-		print_log("Error: stepper_set_forward() failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: stepper_set_forward() failure: %d in %s\r\n", result, __FUNCTION__);
 		_reply[1] = 1;
 	}
 	send_peer_message(_reply, 2);
@@ -1101,7 +1102,7 @@ static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -1113,7 +1114,7 @@ static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_start_home_positioning() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_start_home_positioning() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1123,7 +1124,7 @@ static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1132,7 +1133,7 @@ static void _on_start_stepper_home_positioning(const uint8_t * p_cmd, const uint
 	{
 		_reply[1] = 4; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FILE__);
+		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FUNCTION__);
 		return;
 	}
 
@@ -1157,7 +1158,7 @@ static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -1177,7 +1178,7 @@ static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_run_force() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_run_force() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1186,7 +1187,7 @@ static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1195,7 +1196,7 @@ static void _on_run_stepper_force(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 4; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FILE__);
+		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FUNCTION__);
 		return;
 	}
 
@@ -1217,7 +1218,7 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -1229,7 +1230,7 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_couple_passive() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_couple_passive() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 	_reply[1] = 0; 
@@ -1254,7 +1255,7 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -1274,7 +1275,7 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_run_active() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_run_active() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1284,7 +1285,7 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FILE__);
+		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
 	}
 
@@ -1293,7 +1294,7 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FILE__);
+		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FUNCTION__);
 		return;
 	}
 
@@ -1322,7 +1323,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
-		print_log("Error: invalid length: %d in %s\r\n", length, __FILE__);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
 		return;
 	}
 
@@ -1337,7 +1338,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1349,7 +1350,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 3; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1361,7 +1362,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 4; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1373,7 +1374,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 5; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1385,7 +1386,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 6; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1397,7 +1398,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 7; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1409,7 +1410,7 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	{
 		_reply[1] = 8; 
 		send_peer_message(_reply, 2);
-		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FILE__);
+		print_log("Error: timer_set_prescaler failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1417,16 +1418,74 @@ static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length
 	send_peer_message(_reply, 2);
 }
 
+static void _on_set_position_detectors(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1: 	1/2 GPIOA position detector masks
+	 * 2:	2/2 GPIOA position detector masks
+	 * 3:	1/2 GPIOA position detector critical masks
+	 * 4:	2/2 GPIOA position detector critical masks
+	 * ...
+	 * 41: 	1/2 GPIOK position detector masks
+	 * 42:	2/2 GPIOK position detector masks
+	 * 43:	1/2 GPIOK position detector critical masks
+	 * 44:	2/2 GPIOK position detector critical masks
+	 */
+	
+	_reply[0] = p_cmd[0];
+	if(length != 45)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint16_t masks[11];
+	uint16_t criticalMasks[11];
+
+	for(int i=0; i<11; i++)
+	{
+		uint16_t mask;
+		uint16_t criticalMask;
+
+		mask = p_cmd[i*4 + 2];
+		mask <<= 8;
+		mask += p_cmd[i*4 + 1];
+
+		criticalMask = p_cmd[i*4 + 4];
+		criticalMask <<= 8;
+		criticalMask += p_cmd[i*4 + 3];
+
+		masks[i] = mask;
+		criticalMasks[i] = criticalMask;
+	}
+
+	bool result = position_detector_set_masks(masks, criticalMasks, 11);
+	if(!result)
+	{
+		_reply[1] = 2;
+		send_peer_message(_reply, 2);
+		print_log("Error: position_detector_set_masks failure in %s\r\n", __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0;
+	send_peer_message(_reply, 2);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
 	{
-		print_log("Error: empty host message in %s\r\n", __FILE__);
+		print_log("Error: empty host message in %s\r\n", __FUNCTION__);
 		return;
 	}
 	if(p_command == NULL)
 	{
-		print_log("Error: invalid buffer address in %s\r\n", __FILE__);
+		print_log("Error: invalid buffer address in %s\r\n", __FUNCTION__);
 		return;
 	}
 
@@ -1492,8 +1551,11 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_SET_TIMER_PRESCALER:
 		_on_set_timer_prescaler(p_command, length);
 		break;
+	case HOST_COMMAND_SET_POSITION_DETECTORS:
+		_on_set_position_detectors(p_command, length);
+		break;
 	default:
-		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FILE__);
+		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);
 		break;
 	}
 }
@@ -1508,7 +1570,13 @@ void on_stepper_out_of_scope_interrupt()
 
 }
 
+void on_position_detector_critical_mask()
+{
+
+}
+
 void poll_app(void)
 {
+    poll_position_detector();
 
 }

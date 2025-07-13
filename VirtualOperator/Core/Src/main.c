@@ -28,6 +28,7 @@
 #include "app.h"
 #include "timer.h"
 #include "stepper.h"
+#include "position_detector.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -228,6 +229,7 @@ int main(void)
 
   stepper_init_data_structure();
   timer_init_data_structure();
+  position_detector_init_data();
 
   mainLoopCount = 0;
   /* USER CODE END 2 */
