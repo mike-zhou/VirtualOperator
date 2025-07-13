@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 
+#include "app.h"
 #include "stepper.h"
 #include "usart1.h"
 
@@ -121,6 +122,97 @@ static void _set_clock_pulse_level_second(StepperData * const pStepper)
     }
 
     HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
+}
+
+static bool _is_stepper_at_home_boundary(StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
+static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
+{
+    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
+
+    if(state == GPIO_PIN_SET)
+        return true;
+    else
+        return false;
+}
+
+static void _update_encoder_offset(StepperData * const pStepper)
+{
+    if(pStepper->encoderId == ENCODER_INVALID_ID)
+    {
+        return;
+    }
+
+    const uint16_t curr = encoder_get_count(pStepper->encoderId);
+    const uint16_t prev = pStepper->encoderCount;
+
+    // this function is called in high frequency, so the difference between
+    // curr and prev should not be too large.
+    // forword:
+    //   case 0:   0x0 -------------------prev-----curr------------------------- 0xFFFF
+    //   case 1:   0x0 --curr-------------------------------------------prev---- 0xFFFF
+    // backword:
+    //   case 2:   0x0 ----------------------------curr-----------prev---------- 0xFFFF
+    //   case 3:   0x0 ----prev-----------------------------------------curr---- 0xFFFF
+
+    if(curr > prev)
+    {
+        uint16_t delta = curr - prev;
+        if(delta < 0x7FFF)
+        {
+            pStepper->encodeOffset += delta; // case 0
+        }
+        else
+        {
+            pStepper->encodeOffset -= 0x10000 - delta; // case 3
+        }
+    }
+    else
+    {
+        uint16_t delta = prev - curr;
+        if(delta < 0x7FFF)
+        {
+            pStepper->encodeOffset -= delta; // case 2
+        }
+        else
+        {
+            pStepper->encodeOffset += 0x10000 - delta; // case 1
+        }
+    }
+
+    pStepper->encoderCount = curr;
+}
+
+static bool _is_stepper_in_sync(StepperData * const pStepper)
+{
+    // expectedEncoderPosition = offset * (encoderCountsPerRevolution / stepsPerRevolution)
+    int64_t expectedEncoderPosition = pStepper->offset;
+    expectedEncoderPosition *= pStepper->encoderCountsPerRevolution;
+    expectedEncoderPosition /= pStepper->stepsPerRevolution;
+
+    int32_t error = abs(pStepper->encodeOffset - expectedEncoderPosition);
+
+    if(error > pStepper->maxEncoderOffsetError)
+    {
+        pStepper->maxEncoderOffsetError = (uint8_t)error;
+    }
+
+    if(error >=pStepper->encoderOffsetErrorThreshold)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 /**
@@ -1040,73 +1132,6 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
     return STEPPER_OK;
 }
 
-static void _update_encoder_offset(StepperData * const pStepper)
-{
-    if(pStepper->encoderId == ENCODER_INVALID_ID)
-    {
-        return;
-    }
-
-    const uint16_t curr = encoder_get_count(pStepper->encoderId);
-    const uint16_t prev = pStepper->encoderCount;
-
-    // this function is called in high frequency, so the difference between
-    // curr and prev should not be too large.
-    // forword:
-    //   case 0:   0x0 -------------------prev-----curr------------------------- 0xFFFF
-    //   case 1:   0x0 --curr-------------------------------------------prev---- 0xFFFF
-    // backword:
-    //   case 2:   0x0 ----------------------------curr-----------prev---------- 0xFFFF
-    //   case 3:   0x0 ----prev-----------------------------------------curr---- 0xFFFF
-
-    if(curr > prev)
-    {
-        uint16_t delta = curr - prev;
-        if(delta < 0x7FFF)
-        {
-            pStepper->encodeOffset += delta; // case 0
-        }
-        else
-        {
-            pStepper->encodeOffset -= 0x10000 - delta; // case 3
-        }
-    }
-    else
-    {
-        uint16_t delta = prev - curr;
-        if(delta < 0x7FFF)
-        {
-            pStepper->encodeOffset -= delta; // case 2
-        }
-        else
-        {
-            pStepper->encodeOffset += 0x10000 - delta; // case 1
-        }
-    }
-
-    pStepper->encoderCount = curr;
-}
-
-static bool _is_stepper_at_home_boundary(StepperData * const pStepper)
-{
-    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
-
-    if(state == GPIO_PIN_SET)
-        return true;
-    else
-        return false;
-}
-
-static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
-{
-    GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortEndBoundary, 0x1 << pStepper->gpioPinIndexEndBoundary);
-
-    if(state == GPIO_PIN_SET)
-        return true;
-    else
-        return false;
-}
-
 StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length)
 {
     if(id >= STEPPER_ID_COUNT)
@@ -1175,30 +1200,6 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     *p_status_length = 12;
     
     return STEPPER_OK;
-}
-
-static bool _is_stepper_in_sync(StepperData * const pStepper)
-{
-    // expectedEncoderPosition = offset * (encoderCountsPerRevolution / stepsPerRevolution)
-    int64_t expectedEncoderPosition = pStepper->offset;
-    expectedEncoderPosition *= pStepper->encoderCountsPerRevolution;
-    expectedEncoderPosition /= pStepper->stepsPerRevolution;
-    
-    int32_t error = abs(pStepper->encodeOffset - expectedEncoderPosition);
-
-    if(error > pStepper->maxEncoderOffsetError)
-    {
-        pStepper->maxEncoderOffsetError = (uint8_t)error;
-    }
-
-    if(error >=pStepper->encoderOffsetErrorThreshold)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
 }
 
 StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
