@@ -203,9 +203,9 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexClock,
     const uint16_t homeBoundaryToReadySteps,
     const uint32_t range,
-    const uint16_t stepsPerRevolution,
+    const uint16_t stepsPerRotation,
     const EncoderId encoderId,
-    const uint16_t encoderCountsPerRevolution,
+    const uint16_t encoderCountsPerRotation,
     const uint16_t encoderOffsetErrorThreshold
 );
 

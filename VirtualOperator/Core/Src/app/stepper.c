@@ -41,9 +41,9 @@ typedef struct _Stepper
     uint8_t gpioPinIndexClock;
     uint16_t homeBoundaryToReadySteps; 
     uint32_t range;
-    uint16_t stepsPerRevolution;
+    uint16_t stepsPerRotation;
     EncoderId encoderId;
-    uint16_t encoderCountsPerRevolution;
+    uint16_t encoderCountsPerRotation;
     uint16_t encoderOffsetErrorThreshold;
     bool isStepperControlInitialized;
 
@@ -193,10 +193,10 @@ static void _update_encoder_offset(StepperData * const pStepper)
 
 static bool _is_stepper_in_sync(StepperData * const pStepper)
 {
-    // expectedEncoderPosition = offset * (encoderCountsPerRevolution / stepsPerRevolution)
+    // expectedEncoderPosition = offset * (encoderCountsPerRotation / stepsPerRotation)
     int64_t expectedEncoderPosition = pStepper->offset;
-    expectedEncoderPosition *= pStepper->encoderCountsPerRevolution;
-    expectedEncoderPosition /= pStepper->stepsPerRevolution;
+    expectedEncoderPosition *= pStepper->encoderCountsPerRotation;
+    expectedEncoderPosition /= pStepper->stepsPerRotation;
 
     int32_t error = abs(pStepper->encodeOffset - expectedEncoderPosition);
 
@@ -406,9 +406,9 @@ StepperReturnCode stepper_set_controls(
     const uint8_t gpioPinIndexClock,
     const uint16_t homeBoundaryToReadySteps,
     const uint32_t range,
-    const uint16_t stepsPerRevolution,
+    const uint16_t stepsPerRotation,
     const EncoderId encoderId,
-    const uint16_t encoderCountsPerRevolution,
+    const uint16_t encoderCountsPerRotation,
     const uint16_t encoderOffsetErrorThreshold)
 {
     if(id >= STEPPER_ID_COUNT)
@@ -443,7 +443,7 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_ERROR_INVALID_ENCODER_ID;
     }
-    if(stepsPerRevolution == 0 || encoderCountsPerRevolution == 0)
+    if(stepsPerRotation == 0 || encoderCountsPerRotation == 0)
     {
         return STEPPER_ERROR_INVALID_CONTROL_PARAMETER;
     }
@@ -473,9 +473,9 @@ StepperReturnCode stepper_set_controls(
     pStepper->gpioPinIndexClock = gpioPinIndexClock;
     pStepper->homeBoundaryToReadySteps = homeBoundaryToReadySteps;
     pStepper->range = range;
-    pStepper->stepsPerRevolution = stepsPerRevolution;
+    pStepper->stepsPerRotation = stepsPerRotation;
     pStepper->encoderId = encoderId;
-    pStepper->encoderCountsPerRevolution = encoderCountsPerRevolution;
+    pStepper->encoderCountsPerRotation = encoderCountsPerRotation;
     pStepper->encoderOffsetErrorThreshold = encoderOffsetErrorThreshold;
     pStepper->isStepperControlInitialized = true;
 

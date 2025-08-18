@@ -1212,7 +1212,6 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	 * 1:	stepper id
 	 * 2:	active stepper id
 	 */
-
 	_reply[0] = p_cmd[0];
 	if(length != 3)
 	{
@@ -1228,7 +1227,7 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	StepperReturnCode stepper_result = stepper_couple_passive(activeStepperId, passiveStepperId);
 	if(stepper_result != STEPPER_OK)
 	{
-		_reply[1] = 3; 
+		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
 		print_log("Error: stepper_couple_passive() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
 		return;
@@ -1292,7 +1291,7 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	TimerReturnCode timer_result = timer_start(timerId, stepperId, pulseWidth);
 	if(timer_result != TIMER_OK)
 	{
-		_reply[1] = 3; 
+		_reply[1] = 4; 
 		send_peer_message(_reply, 2);
 		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FUNCTION__);
 		return;
