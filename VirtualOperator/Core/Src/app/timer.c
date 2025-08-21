@@ -25,6 +25,12 @@ typedef struct
 	TimerState state;
 	TIM_HandleTypeDef * pTimerHandle;
 	StepperId stepperId;
+
+	// data for testing
+	bool isTesting;
+	uint16_t pulseIndexTesting;
+	uint16_t totalPulseTesting;
+	uint16_t logIntervalTesting;
 } FlexTimer;
 
 typedef struct
@@ -43,6 +49,12 @@ typedef struct
 		uint16_t expectedPulseWidth;
 		uint16_t remainingPulseWidth;
 	} steppers[STEPPER_ID_COUNT];
+
+	// data for testing
+	bool isTesting;
+	uint16_t pulseIndexTesting;
+	uint16_t totalPulseTesting;
+	uint16_t logIntervalTesting;
 } FixTimer;
 
 static FlexTimer _flexTimers[FLEX_TIMER_COUNT];
@@ -94,31 +106,37 @@ void timer_init_data_structure()
 	pTimer->pTimerHandle = &htim12;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	pTimer = _flexTimers + 1;
 	pTimer->pTimerHandle = &htim13;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	pTimer = _flexTimers + 2;
 	pTimer->pTimerHandle = &htim14;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	pTimer = _flexTimers + 3;
 	pTimer->pTimerHandle = &htim15;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	pTimer = _flexTimers + 4;
 	pTimer->pTimerHandle = &htim16;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	pTimer = _flexTimers + 5;
 	pTimer->pTimerHandle = &htim17;
 	pTimer->stepperId = STEPPER_ID_INVALID;
 	pTimer->state = TIMER_STATE_IDLE;
+	pTimer->isTesting = false;
 
 	// fix timer. A fix timer can drive multiple steppers.
 	_fixTimer.pTimerHandle = &hhrtim;
@@ -130,6 +148,7 @@ void timer_init_data_structure()
 		_fixTimer.steppers[i].remainingPulseWidth = 0;
 	}
 	_fixTimer.state = TIMER_STATE_IDLE;
+	_fixTimer.isTesting = false;
 
 	_maxFlexTimerIsrPeriod = 0;
 	_maxFixTimerIsrPeriod = 0;
@@ -198,6 +217,7 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 		if(_fixTimer.state == TIMER_STATE_IDLE)
 		{
 			_fixTimer.state = TIMER_STATE_BUSY;
+			__HAL_HRTIM_SETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, 1);
 			HAL_StatusTypeDef rc = HAL_HRTIM_SimpleBaseStart_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
 			if(rc != HAL_OK)
 			{
@@ -220,6 +240,55 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 		_flexTimers[timerId].state = TIMER_STATE_IDLE;
 		_flexTimers[timerId].stepperId = STEPPER_ID_INVALID;
 		print_log("Error: timer_start(), failed to start timer: %d, rc: %d\r\n", timerId, rc);
+		return TIMER_ERROR_INTERNAL_FAILURE;
+	}
+
+	return TIMER_OK;	
+}
+
+TimerReturnCode timer_test(const TimerId timerId, const uint16_t pulseWidth, const uint16_t totalPulse, const uint16_t logInterval)
+{
+	if(timerId >= TIMER_ID_COUNT)
+	{
+		return TIMER_ERROR_INVALID_ID;
+	}
+	if(pulseWidth == 0)
+	{
+		return TIMER_ERROR_INVALID_PULSE_WIDTH;
+	}
+
+	if(timerId == FIX_TIMER_ID)
+	{
+		__HAL_HRTIM_SETPERIOD(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, pulseWidth);
+		__HAL_HRTIM_SETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, 1);
+
+		_fixTimer.pulseIndexTesting = 0;
+		_fixTimer.totalPulseTesting = totalPulse;
+		_fixTimer.logIntervalTesting = logInterval;
+		_fixTimer.isTesting = true;
+
+		HAL_StatusTypeDef rc = HAL_HRTIM_SimpleBaseStart_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
+		if(rc != HAL_OK)
+		{
+			print_log("Error: timer_test(), failed to start fix timer, rc: %d\r\n", rc);
+			return TIMER_ERROR_INTERNAL_FAILURE;
+		}
+
+		return TIMER_OK;
+	}
+
+	__HAL_TIM_SET_AUTORELOAD(_flexTimers[timerId].pTimerHandle, pulseWidth);
+	__HAL_TIM_SET_COUNTER(_flexTimers[timerId].pTimerHandle, 1);
+
+	_flexTimers[timerId].pulseIndexTesting = 0;
+	_flexTimers[timerId].totalPulseTesting = totalPulse;
+	_flexTimers[timerId].logIntervalTesting = logInterval;
+	_flexTimers[timerId].isTesting = true;
+
+	HAL_StatusTypeDef rc = HAL_TIM_Base_Start_IT(_flexTimers[timerId].pTimerHandle);
+	if(rc != HAL_OK)
+	{
+		print_log("Error: timer_test(), failed to start timer: %d, rc: %d\r\n", timerId, rc);
 		return TIMER_ERROR_INTERNAL_FAILURE;
 	}
 
@@ -370,38 +439,76 @@ static void _on_flex_timer(const TimerId timerId)
 {
 	FlexTimer * pTimer = _flexTimers + timerId;
 
-	if(pTimer->state != TIMER_STATE_BUSY)
+	if(pTimer->isTesting == false)
 	{
-		return;
-	}
-	if(pTimer->stepperId == STEPPER_ID_INVALID)
-	{
-		return;
-	}
-
-	uint16_t newPulseWidth;
-	const StepperReturnCode rc = on_interupt_stepper_pulse_end(pTimer->stepperId, &newPulseWidth);
-	if(rc == STEPPER_OK)	
-	{
-		if(newPulseWidth == 0)
+		if(pTimer->state != TIMER_STATE_BUSY)
 		{
-			_stop_flex_timer(timerId);
+			return;
+		}
+		if(pTimer->stepperId == STEPPER_ID_INVALID)
+		{
+			return;
+		}
+
+		uint16_t newPulseWidth;
+		const StepperReturnCode rc = on_interupt_stepper_pulse_end(pTimer->stepperId, &newPulseWidth);
+		if(rc == STEPPER_OK)	
+		{
+			if(newPulseWidth == 0)
+			{
+				_stop_flex_timer(timerId);
+			}
+			else
+			{
+				__HAL_TIM_SET_AUTORELOAD(pTimer->pTimerHandle, newPulseWidth);
+			}
 		}
 		else
 		{
-			__HAL_TIM_SET_AUTORELOAD(pTimer->pTimerHandle, newPulseWidth);
+			print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pTimer->stepperId);
+			_stop_flex_timer(timerId);
+		}
+
+		uint16_t count = __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle);
+		if(count > _maxFlexTimerIsrPeriod)
+		{
+			_maxFlexTimerIsrPeriod = count;
 		}
 	}
 	else
 	{
-		print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pTimer->stepperId);
-		_stop_flex_timer(timerId);
-	}
+		if(pTimer->pulseIndexTesting >= pTimer->totalPulseTesting)
+		{
+			print_log("ERROR: FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+		}
 
-	uint16_t count = __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle);
-	if(count > _maxFlexTimerIsrPeriod)
-	{
-		_maxFlexTimerIsrPeriod = count;
+		if(pTimer->pulseIndexTesting == 0)
+		{
+			print_log("TEST start, FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+		}
+		if((pTimer->pulseIndexTesting % pTimer->logIntervalTesting) == 0)
+		{
+			print_log("TEST: FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+		}
+
+		pTimer->pulseIndexTesting++;
+
+		if(pTimer->pulseIndexTesting == pTimer->totalPulseTesting)
+		{
+			print_log("TEST end, FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+			_stop_flex_timer(timerId);
+			pTimer->isTesting = false;
+
+			_maxFlexTimerIsrPeriod = 0;
+		}
+		else
+		{
+			uint16_t count = __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle);
+			if(count > _maxFlexTimerIsrPeriod)
+			{
+				_maxFlexTimerIsrPeriod = count;
+			}
+		}
 	}
 }
 
@@ -438,70 +545,110 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 {
 	if(TimerIdx != HRTIM_TIMERINDEX_TIMER_A)
 	{
-		return;
-	}
-	if(_fixTimer.state != TIMER_STATE_BUSY)
-	{
+		print_log("ERROR: invalid fix timer index: %d\r\n", TimerIdx);
 		return;
 	}
 
-	bool stopTimer = true;
-	
-	for(int i=0; i<STEPPER_ID_COUNT; i++)
+	if(_fixTimer.isTesting == false)
 	{
-		struct Stepper * pStepper = _fixTimer.steppers + i;
-
-		if(pStepper->stepperId == STEPPER_ID_INVALID)
+		if(_fixTimer.state != TIMER_STATE_BUSY)
 		{
-			continue;
-		}
-		if(pStepper->firstPulseSkipped == false)
-		{
-			pStepper->firstPulseSkipped = true;
-			stopTimer = false;
-			continue;
+			return;
 		}
 
-		if(pStepper->remainingPulseWidth > 1)
+		bool stopTimer = true;
+		
+		for(int i=0; i<STEPPER_ID_COUNT; i++)
 		{
-			stopTimer = false;
-			pStepper->remainingPulseWidth -= 1;
-		}
-		else
-		{
-			uint16_t newPulseWidth;
-			const StepperReturnCode rc = on_interupt_stepper_pulse_end(pStepper->stepperId, &newPulseWidth);
+			struct Stepper * pStepper = _fixTimer.steppers + i;
 
-			if(rc == STEPPER_OK)
+			if(pStepper->stepperId == STEPPER_ID_INVALID)
 			{
-				if(newPulseWidth == 0)
-				{
-					// stepper doesn't need to be driven any more
-					pStepper->stepperId = STEPPER_ID_INVALID;
-				}
-				else
-				{
-					stopTimer = false;
-					pStepper->remainingPulseWidth = newPulseWidth;
-				}
+				continue;
+			}
+			if(pStepper->firstPulseSkipped == false)
+			{
+				pStepper->firstPulseSkipped = true;
+				stopTimer = false;
+				continue;
+			}
+
+			if(pStepper->remainingPulseWidth > 1)
+			{
+				stopTimer = false;
+				pStepper->remainingPulseWidth -= 1;
 			}
 			else
 			{
-				print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pStepper->stepperId);
-				pStepper->stepperId = STEPPER_ID_INVALID;
+				uint16_t newPulseWidth;
+				const StepperReturnCode rc = on_interupt_stepper_pulse_end(pStepper->stepperId, &newPulseWidth);
+
+				if(rc == STEPPER_OK)
+				{
+					if(newPulseWidth == 0)
+					{
+						// stepper doesn't need to be driven any more
+						pStepper->stepperId = STEPPER_ID_INVALID;
+					}
+					else
+					{
+						stopTimer = false;
+						pStepper->remainingPulseWidth = newPulseWidth;
+					}
+				}
+				else
+				{
+					print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pStepper->stepperId);
+					pStepper->stepperId = STEPPER_ID_INVALID;
+				}
 			}
 		}
-	}
 
-	if(stopTimer)
-	{
-		// no stepper needs to be clocked
-		_stop_fix_timer();
-	}
+		if(stopTimer)
+		{
+			// no stepper needs to be clocked
+			_stop_fix_timer();
+		}
 
-	uint16_t count = __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
-	if(count > _maxFixTimerIsrPeriod)
+		uint16_t count = __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
+		if(count > _maxFixTimerIsrPeriod)
+		{
+			_maxFixTimerIsrPeriod = count;
+		}
+	}
+	else
 	{
-		_maxFixTimerIsrPeriod = count;
+		if(_fixTimer.pulseIndexTesting >= _fixTimer.totalPulseTesting)
+		{
+			print_log("ERROR: FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+		}
+
+		if(_fixTimer.pulseIndexTesting == 0)
+		{
+			print_log("TEST start, FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+		}
+		if((_fixTimer.pulseIndexTesting % _fixTimer.logIntervalTesting) == 0)
+		{
+			print_log("TEST: FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+		}
+
+		_fixTimer.pulseIndexTesting++;
+
+		if(_fixTimer.pulseIndexTesting == _fixTimer.totalPulseTesting)
+		{
+			print_log("TEST end, FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+			_stop_fix_timer();
+			_fixTimer.isTesting = false;
+
+			_maxFixTimerIsrPeriod = 0;
+		}
+		else
+		{
+			uint16_t count = __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
+			if(count > _maxFixTimerIsrPeriod)
+			{
+				_maxFixTimerIsrPeriod = count;
+			}
+		}
 	}
 }

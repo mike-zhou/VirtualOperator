@@ -1475,6 +1475,63 @@ static void _on_set_position_detectors(const uint8_t * p_cmd, const uint16_t len
 	send_peer_message(_reply, 2);
 }
 
+static void _on_test_timer(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	timer id
+	 * 2: 	1/2 pulse width
+	 * 3:	2/2 pulse width
+	 * 4:	1/2 total pulse
+	 * 5:	2/2 total pulse
+	 * 6:	1/2 log interval
+	 * 7:	2/2 log interval
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 8)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t timerId;
+	uint16_t pulseWidth;
+	uint16_t totalPulse;
+	uint16_t logInterval;
+
+	timerId = p_cmd[1];
+
+	pulseWidth = p_cmd[3];
+	pulseWidth <<= 8;
+	pulseWidth += p_cmd[2];
+
+	totalPulse = p_cmd[5];
+	totalPulse <<= 8;
+	totalPulse += p_cmd[4];
+
+	logInterval = p_cmd[7];
+	logInterval <<= 8;
+	logInterval += p_cmd[6];
+
+	print_log("TEST_TIMER, timerId: %d, pulseWidth: %d, totalPulse: %d, logInterval: %d\r\n", timerId, pulseWidth, totalPulse, logInterval);
+
+	TimerReturnCode result = timer_test(timerId, pulseWidth, totalPulse, logInterval);
+	if(result != TIMER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_test failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -1552,6 +1609,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_SET_POSITION_DETECTORS:
 		_on_set_position_detectors(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_TIMER:
+		_on_test_timer(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);
