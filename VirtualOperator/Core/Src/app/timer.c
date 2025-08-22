@@ -37,7 +37,7 @@ typedef struct
 {
 	TimerState state;
 	HRTIM_HandleTypeDef * pTimerHandle;
-	uint16_t fixPulseWidth_ns; // in nano second
+	uint32_t fixPulseWidth_ns; // in nano second
 	struct Stepper
 	{
 		StepperId stepperId;
@@ -66,7 +66,8 @@ static uint16_t _maxFixTimerIsrPeriod;
 static inline uint32_t _get_fix_timer_interval_ns(void)
 {
     /* Step-1: kernel clock that feeds the whole HRTIM engine */
-    uint32_t f_hrtim = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_HRTIM1);
+    // uint32_t f_hrtim = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_HRTIM1);
+	uint32_t f_hrtim = 240 * 1024 * 1024;
 	uint32_t CKPSC = __HAL_HRTIM_GETCLOCKPRESCALER(&hhrtim, HRTIM_TIMERINDEX_TIMER_A);
 	uint32_t ratio;
 
@@ -90,7 +91,7 @@ static inline uint32_t _get_fix_timer_interval_ns(void)
 			break;
 	}
 
-	uint32_t clockInterval = 1024 * 1024 * 1024 * ratio / f_hrtim; // GHz / (f_hrtim / ratio)
+	uint32_t clockInterval = 1024 * 1024 * 1024 / (f_hrtim / ratio); // GHz / (f_hrtim / ratio)
 	uint32_t period = __HAL_HRTIM_GETPERIOD(&hhrtim, HRTIM_TIMERINDEX_TIMER_A);
 	uint32_t interval_ns = clockInterval * period;
 

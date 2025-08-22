@@ -70,9 +70,9 @@ UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_OTG_HS;
 
-uint32_t mainLoopCount;
-
 /* USER CODE BEGIN PV */
+
+uint32_t mainLoopCount;
 
 /* USER CODE END PV */
 
