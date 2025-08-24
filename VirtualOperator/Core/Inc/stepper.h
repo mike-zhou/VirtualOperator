@@ -135,7 +135,8 @@ typedef enum
     STEPPER_ERROR_OUT_OF_STEPS,
     STEPPER_ERROR_OUT_OF_SYNC,
     STEPPER_ERROR_OUT_OF_RANGE,
-    STEPPER_ERROR_MISSED_ACTIVE_PULSE
+    STEPPER_ERROR_MISSED_ACTIVE_PULSE,
+    STEPPER_ERROR_GPIO_RW_FAILURE
 } StepperReturnCode;
 
 typedef enum 
@@ -252,5 +253,9 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
 // this function is called when the clock pulse finishes, pNextPulseWidth returns the width of next pulse.
 // if this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
 StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
+
+StepperReturnCode stepper_test_enable(const StepperId id, const bool isEnable);
+StepperReturnCode stepper_test_forward(const StepperId id, const bool isForward);
+StepperReturnCode stepper_test_clock(const StepperId id, const bool isFirstHalf);
 
 #endif /* INC_STEPPER_H_ */

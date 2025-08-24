@@ -1532,6 +1532,123 @@ static void _on_test_timer(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 2);
 }
 
+static void _on_test_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	stepper id
+	 * 2: 	isEnable
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 3)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t stepperId;
+	bool isEnable;
+
+	stepperId = p_cmd[1];
+	isEnable = (p_cmd[2] != 0) ? true : false;
+
+	print_log("TEST_STEPPER_ENABLE, stepperId: %d, isEnable: %d\r\n", stepperId, p_cmd[2]);
+
+	StepperReturnCode result = stepper_test_enable(stepperId, isEnable);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_test_enable failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
+static void _on_test_stepper_forward(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	stepper id
+	 * 2: 	isForward
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 3)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t stepperId;
+	bool isForward;
+
+	stepperId = p_cmd[1];
+	isForward = (p_cmd[2] != 0) ? true : false;
+
+	print_log("TEST_STEPPER_FORWARD, stepperId: %d, isForward: %d\r\n", stepperId, p_cmd[2]);
+
+	StepperReturnCode result = stepper_test_forward(stepperId, isForward);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_test_enable failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
+static void _on_test_stepper_clock(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	stepper id
+	 * 2: 	isFirstHalf
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 3)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t stepperId;
+	bool isFirstHalf;
+
+	stepperId = p_cmd[1];
+	isFirstHalf = (p_cmd[2] != 0) ? true : false;
+
+	print_log("TEST_STEPPER_CLOCK, stepperId: %d, isFirstHalf: %d\r\n", stepperId, p_cmd[2]);
+
+	StepperReturnCode result = stepper_test_clock(stepperId, isFirstHalf);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_test_clock failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -1612,6 +1729,15 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_TEST_TIMER:
 		_on_test_timer(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_STEPPER_ENABLE:
+		_on_test_stepper_enable(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_STEPPER_FORWARD:
+		_on_test_stepper_forward(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_STEPPER_CLOCK:
+		_on_test_stepper_clock(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);

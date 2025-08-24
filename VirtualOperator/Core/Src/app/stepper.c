@@ -1487,3 +1487,106 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
     
     return STEPPER_ERROR_WRONG_STATE;
 }
+
+StepperReturnCode stepper_test_enable(const StepperId id, const bool isEnable)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_ERROR_INVALID_ID;
+    }
+    
+    StepperData * pStepper = _steppers + (int)id;
+    if(pStepper->state != STEPPER_STATE_INITIALIZED)
+    {
+        return STEPPER_ERROR_WRONG_STATE;
+    }
+
+    GPIO_PinState pinState;
+    if(pStepper->isEnableHigh)
+    {
+        pinState = isEnable ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    }
+    else
+    {
+        pinState = isEnable ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortEnable, 0x1 << pStepper->gpioPinIndexEnable, pinState);
+    if(pinState != HAL_GPIO_ReadPin(pStepper->pGpioPortEnable, 0x1 << pStepper->gpioPinIndexEnable))
+    {
+        return STEPPER_ERROR_GPIO_RW_FAILURE;
+    }
+
+    pStepper->isEnabled = isEnable;
+
+    return STEPPER_OK;
+}
+
+StepperReturnCode stepper_test_forward(const StepperId id, const bool isForward)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_ERROR_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+    if(pStepper->state != STEPPER_STATE_INITIALIZED)
+    {
+        return STEPPER_ERROR_WRONG_STATE;
+    }
+
+    GPIO_PinState pinState;
+    if(pStepper->isForwardHigh)
+    {
+        pinState = isForward ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    }
+    else
+    {
+        pinState = isForward ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward, pinState);
+    if(pinState != HAL_GPIO_ReadPin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward))
+    {
+        return STEPPER_ERROR_GPIO_RW_FAILURE;
+    }
+    
+    pStepper->isForward = isForward;
+
+    return STEPPER_OK;
+}
+
+StepperReturnCode stepper_test_clock(const StepperId id, const bool isFirstHalf)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_ERROR_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+    if(pStepper->state != STEPPER_STATE_INITIALIZED)
+    {
+        return STEPPER_ERROR_WRONG_STATE;
+    }
+
+    GPIO_PinState pinState;
+    if(pStepper->isRisingEdgeDriven)
+    {
+        pinState = isFirstHalf ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    }
+    else
+    {
+        pinState = isFirstHalf ? GPIO_PIN_SET : GPIO_PIN_RESET;
+    }
+
+    HAL_GPIO_WritePin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward, pinState);
+    if(pinState != HAL_GPIO_ReadPin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward))
+    {
+        return STEPPER_ERROR_GPIO_RW_FAILURE;
+    }
+    
+    pStepper->pulseState = isFirstHalf ? FIRST_HALF : SECOND_HALF;
+
+    return STEPPER_OK;
+}
+
