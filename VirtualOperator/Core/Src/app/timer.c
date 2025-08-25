@@ -480,23 +480,23 @@ static void _on_flex_timer(const TimerId timerId)
 	{
 		if(pTimer->pulseIndexTesting >= pTimer->totalPulseTesting)
 		{
-			print_log("ERROR: FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+			print_log("ERROR: FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 		}
 
 		if(pTimer->pulseIndexTesting == 0)
 		{
-			print_log("TEST start, FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+			print_log("TEST start, FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 		}
 		if((pTimer->pulseIndexTesting % pTimer->logIntervalTesting) == 0)
 		{
-			print_log("TEST: FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+			print_log("TEST: FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 		}
 
 		pTimer->pulseIndexTesting++;
 
 		if(pTimer->pulseIndexTesting == pTimer->totalPulseTesting)
 		{
-			print_log("TEST end, FlexTimer: %d, pulse: %d/%d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting);
+			print_log("TEST end, FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 			_stop_flex_timer(timerId);
 			pTimer->isTesting = false;
 
@@ -621,23 +621,23 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 	{
 		if(_fixTimer.pulseIndexTesting >= _fixTimer.totalPulseTesting)
 		{
-			print_log("ERROR: FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+			print_log("ERROR: FixTimer pulse: %d/%d, ISR time: %d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting, __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A));
 		}
 
 		if(_fixTimer.pulseIndexTesting == 0)
 		{
-			print_log("TEST start, FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+			print_log("TEST start, FixTimer pulse: %d/%d, ISR time: %d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting, __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A));
 		}
 		if((_fixTimer.pulseIndexTesting % _fixTimer.logIntervalTesting) == 0)
 		{
-			print_log("TEST: FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+			print_log("TEST: FixTimer pulse: %d/%d, ISR time: %d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting, __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A));
 		}
 
 		_fixTimer.pulseIndexTesting++;
 
 		if(_fixTimer.pulseIndexTesting == _fixTimer.totalPulseTesting)
 		{
-			print_log("TEST end, FixTimer pulse: %d/%d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting);
+			print_log("TEST end, FixTimer pulse: %d/%d, ISR time: %d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting, __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A));
 			_stop_fix_timer();
 			_fixTimer.isTesting = false;
 

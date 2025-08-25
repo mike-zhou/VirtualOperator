@@ -464,6 +464,7 @@ StepperReturnCode stepper_set_controls(
     pStepper->isEnableHigh = isEnableHigh;
     pStepper->pGpioPortHomeBoundary = pGpioPortHomeBoundary;
     pStepper->gpioPinIndexHomeBoundary = gpioPinIndexHomeBoundary;
+    pStepper->pGpioPortEndBoundary = pGpioPortEndBoundary;
     pStepper->gpioPinIndexEndBoundary = gpioPinIndexEndBoundary;
     pStepper->pGpioPortEnable = pGpioPortEnable;
     pStepper->gpioPinIndexEnable = gpioPinIndexEnable;
@@ -1579,8 +1580,8 @@ StepperReturnCode stepper_test_clock(const StepperId id, const bool isFirstHalf)
         pinState = isFirstHalf ? GPIO_PIN_SET : GPIO_PIN_RESET;
     }
 
-    HAL_GPIO_WritePin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward, pinState);
-    if(pinState != HAL_GPIO_ReadPin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward))
+    HAL_GPIO_WritePin(pStepper->pGpioPortClock, 0x1 << pStepper->gpioPinIndexClock, pinState);
+    if(pinState != HAL_GPIO_ReadPin(pStepper->pGpioPortClock, 0x1 << pStepper->gpioPinIndexClock))
     {
         return STEPPER_ERROR_GPIO_RW_FAILURE;
     }

@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-#define APP_VERSION "00.00.0002"
+#define APP_VERSION "00.00.0003"
 
 void on_host_command(const uint8_t * p_command, const uint16_t length);
 

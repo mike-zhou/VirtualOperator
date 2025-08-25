@@ -804,14 +804,14 @@ static GPIO_TypeDef * _get_gpio_port_ptr(uint8_t port_index)
 		case 0: return GPIOA;
 		case 1: return GPIOB;
 		case 2: return GPIOC;
-		case 4:	return GPIOD;
-		case 5:	return GPIOE;
-		case 6: return GPIOF;
-		case 7: return GPIOG;
-		case 8: return GPIOH;
-		case 9: return GPIOI;
-		case 10: return GPIOJ;
-		case 11: return GPIOK;
+		case 3:	return GPIOD;
+		case 4:	return GPIOE;
+		case 5: return GPIOF;
+		case 6: return GPIOG;
+		case 7: return GPIOH;
+		case 8: return GPIOI;
+		case 9: return GPIOJ;
+		case 10: return GPIOK;
 		default: 
 			print_log("Error: invalid port index in _get_gpio_port_ptr() in %s\r\n", __FUNCTION__);
 			return NULL;
@@ -974,7 +974,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		return;
 	}
 
-	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d,	portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, encoderOffsetErrorThreshold: %d\r\n", 
+	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d, portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, encoderOffsetErrorThreshold: %d\r\n", 
 		stepperId, 
 		isRisingEdgeDriven,
 		isForwardHigh,
@@ -1602,7 +1602,7 @@ static void _on_test_stepper_forward(const uint8_t * p_cmd, const uint16_t lengt
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_test_enable failure: %d in %s\r\n", result, __FUNCTION__);
+		print_log("Error: stepper_test_forward failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
