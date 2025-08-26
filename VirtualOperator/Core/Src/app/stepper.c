@@ -47,30 +47,36 @@ typedef struct _Stepper
     uint16_t encoderOffsetErrorThreshold;
     bool isStepperControlInitialized;
 
-    // uint16_t data array
+    // uint16_t data array for active or passive pulses
     uint16_t uint16Array[MAX_UINT16_ARRAY_LENGTH];
 
+    /**
+     * active pules
+     */
     // array of pulse width for the stepper to speed up from still to cruising
     uint16_t * pRampupPulseWidths;
-    // length of widthRampUp
-    uint32_t rampupPulses;
+    uint32_t rampupPulseCount;
     bool isRampupPuleseWidthsPopulated;
-
     // array of pulse width for the stepper to slow down from curising to still
     uint16_t * pRampdownPulseWidths;
-    // length of widthRampDown
-    uint32_t rampdownPulses;
+    uint32_t rampdownPulseCount;
     bool isRampdownPulseWidthsPopulated;
-
     // pulse width when the stepper is cruising
     uint16_t cruisePulseWidth;
     bool isCruisePulseWidthPopulated;
 
-    // indexes for passive steppers coupled 
+    /**
+     * passive pules
+     */
     uint16_t * pPassiveStepArray;
     uint32_t passiveStepsCount;
     uint32_t passiveStepIndex;
     bool isPassiveStepsPopulated;
+
+    /**
+     * forced pulse
+     */
+    uint16_t forcePulseWidth;
 
     /**
      * dynamic data
@@ -92,14 +98,15 @@ typedef struct _Stepper
 
     PulseState pulseState;
 
-    uint16_t forcePulseWidth;
-    
     StepperId passiveStepperIds[STEPPER_ID_COUNT];
     bool passiveCoupled;
 } StepperData;
 
 static StepperData _steppers[STEPPER_ID_COUNT];
 
+/**
+ * Set the voltage level at the first half of the clock signal
+ */
 static void _set_clock_pulse_level_first(StepperData * const pStepper)
 {
     GPIO_PinState pinState = GPIO_PIN_SET;
@@ -112,6 +119,9 @@ static void _set_clock_pulse_level_first(StepperData * const pStepper)
     HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
 }
 
+/**
+ * Set the voltage level at the second half of the clock signal
+ */
 static void _set_clock_pulse_level_second(StepperData * const pStepper)
 {
     GPIO_PinState pinState = GPIO_PIN_RESET;
@@ -527,18 +537,21 @@ StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
         return STEPPER_ERROR_WRONG_STATE;
     }
 
-    if(isForward)
+    if(pStepper->state == STEPPER_STATE_READY)
     {
-        if(pStepper->offset + pStepper->stepsToRun > pStepper->range)
+        if(isForward)
         {
-            return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            if(pStepper->offset + pStepper->stepsToRun > pStepper->range)
+            {
+                return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            }
         }
-    }
-    else
-    {
-        if(pStepper->offset < pStepper->stepsToRun)
+        else
         {
-            return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            if(pStepper->offset < pStepper->stepsToRun)
+            {
+                return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            }
         }
     }
 
@@ -594,13 +607,13 @@ static void _reset_active_stepper_pulses(const StepperId id)
     StepperData * pStepper = _steppers + (int)id;
 
     pStepper->pRampdownPulseWidths = pStepper->uint16Array;
-    pStepper->rampupPulses = 0;
+    pStepper->rampupPulseCount = 0;
     pStepper->isRampupPuleseWidthsPopulated = false;
 
     pStepper->isCruisePulseWidthPopulated = false;
 
     pStepper->pRampdownPulseWidths = pStepper->uint16Array + MAX_RAMP_CLOCKS;
-    pStepper->rampdownPulses = 0;
+    pStepper->rampdownPulseCount = 0;
     pStepper->isRampdownPulseWidthsPopulated = false;
 
     pStepper->pPassiveStepArray = NULL;
@@ -664,7 +677,7 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
         _reset_active_stepper_pulses(id);
     }
 
-    if(pStepper->rampupPulses != count * batchIndex)
+    if(pStepper->rampupPulseCount != count * batchIndex)
     {
         return STEPPER_ERROR_WRONG_BATCH_INDEX;
     }
@@ -672,7 +685,7 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
     {
         return STEPPER_ERROR_INTERNAL_DATA_ERROR;
     }
-    if((pStepper->rampupPulses + count) > MAX_RAMP_CLOCKS)
+    if((pStepper->rampupPulseCount + count) > MAX_RAMP_CLOCKS)
     {
         return STEPPER_ERROR_TOO_MANY_PULSE_WIDTHS;
     }
@@ -683,9 +696,9 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
         width <<= 8;
         width += pWidths[i * 2];
 
-        pStepper->pRampupPulseWidths[pStepper->rampupPulses + i] = width;
+        pStepper->pRampupPulseWidths[pStepper->rampupPulseCount + i] = width;
     }
-    pStepper->rampupPulses +=  count;
+    pStepper->rampupPulseCount +=  count;
 
     if(batchIndex == (totalBatches - 1))
     {
@@ -789,7 +802,7 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
         return STEPPER_ERROR_WRONG_PULSE_ORDER;
     }
 
-    if(pStepper->rampdownPulses != count * batchIndex)
+    if(pStepper->rampdownPulseCount != count * batchIndex)
     {
         return STEPPER_ERROR_WRONG_BATCH_INDEX;
     }
@@ -797,7 +810,7 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
     {
         return STEPPER_ERROR_INTERNAL_DATA_ERROR;
     }
-    if((pStepper->rampdownPulses + count) > MAX_RAMP_CLOCKS)
+    if((pStepper->rampdownPulseCount + count) > MAX_RAMP_CLOCKS)
     {
         return STEPPER_ERROR_TOO_MANY_PULSE_WIDTHS;
     }
@@ -808,9 +821,9 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
         width <<= 8;
         width += pWidths[i * 2];
 
-        pStepper->pRampdownPulseWidths[pStepper->rampdownPulses + i] = width;
+        pStepper->pRampdownPulseWidths[pStepper->rampdownPulseCount + i] = width;
     }
-    pStepper->rampdownPulses +=  count;
+    pStepper->rampdownPulseCount +=  count;
 
     if(batchIndex == lastBatchIndex)
     {
@@ -825,13 +838,13 @@ static void _reset_passive_stepper_pulses(const StepperId id)
     StepperData * pStepper = _steppers + (int)id;
 
     pStepper->pRampdownPulseWidths = NULL;
-    pStepper->rampupPulses = 0;
+    pStepper->rampupPulseCount = 0;
     pStepper->isRampupPuleseWidthsPopulated = false;
 
     pStepper->isCruisePulseWidthPopulated = false;
 
     pStepper->pRampdownPulseWidths = NULL;
-    pStepper->rampdownPulses = 0;
+    pStepper->rampdownPulseCount = 0;
     pStepper->isRampdownPulseWidthsPopulated = false;
 
     pStepper->pPassiveStepArray = pStepper->uint16Array;
@@ -1110,6 +1123,8 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
     pStepper->forcePulseWidth = pulseWidth;
     pStepper->stepsToRun = steps;
     pStepper->currentStep = 0;
+    pStepper->pulseState = FIRST_HALF;
+    _set_clock_pulse_level_first(pStepper);
     pStepper->state = STEPPER_STATE_RUNNING_FORCED;
 
     return STEPPER_OK;
@@ -1282,8 +1297,6 @@ static StepperReturnCode _on_stepper_pulse_end_force(StepperData * const pSteppe
 
     *pNextPulseWidth = 0;
 
-    pStepper->state = STEPPER_STATE_READY;
-
     return STEPPER_OK;
 }
 
@@ -1342,7 +1355,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     bool beforeMidPoint = pStepper->currentStep < (pStepper->stepsToRun >> 1);
     if(beforeMidPoint)
     {
-        if(pStepper->currentStep < pStepper->rampupPulses)
+        if(pStepper->currentStep < pStepper->rampupPulseCount)
         {
             // accelerating
             width = pStepper->pRampupPulseWidths[pStepper->currentStep];
@@ -1351,10 +1364,10 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     else
     {
         uint32_t remainingSteps = pStepper->stepsToRun - pStepper->currentStep;
-        if(pStepper->rampdownPulses > remainingSteps)
+        if(pStepper->rampdownPulseCount > remainingSteps)
         {
             // deaccelerating
-            uint32_t index = pStepper->rampdownPulses - remainingSteps - 1;
+            uint32_t index = pStepper->rampdownPulseCount - remainingSteps - 1;
             width = pStepper->pRampdownPulseWidths[index];
         }
     }
