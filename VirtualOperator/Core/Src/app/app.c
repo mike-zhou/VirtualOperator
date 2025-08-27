@@ -1532,7 +1532,7 @@ static void _on_test_timer(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 2);
 }
 
-static void _on_test_stepper_enable(const uint8_t * p_cmd, const uint16_t length)
+static void _on_test_stepper_signal_enable(const uint8_t * p_cmd, const uint16_t length)
 {
 	/**
 	 * command format:
@@ -1558,12 +1558,12 @@ static void _on_test_stepper_enable(const uint8_t * p_cmd, const uint16_t length
 
 	print_log("TEST_STEPPER_ENABLE, stepperId: %d, isEnable: %d\r\n", stepperId, p_cmd[2]);
 
-	StepperReturnCode result = stepper_test_enable(stepperId, isEnable);
+	StepperReturnCode result = stepper_test_signal_enable(stepperId, isEnable);
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_test_enable failure: %d in %s\r\n", result, __FUNCTION__);
+		print_log("Error: stepper_test_signal_enable failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1571,7 +1571,7 @@ static void _on_test_stepper_enable(const uint8_t * p_cmd, const uint16_t length
 	send_peer_message(_reply, 2);
 }
 
-static void _on_test_stepper_forward(const uint8_t * p_cmd, const uint16_t length)
+static void _on_test_stepper_signal_forward(const uint8_t * p_cmd, const uint16_t length)
 {
 	/**
 	 * command format:
@@ -1597,12 +1597,12 @@ static void _on_test_stepper_forward(const uint8_t * p_cmd, const uint16_t lengt
 
 	print_log("TEST_STEPPER_FORWARD, stepperId: %d, isForward: %d\r\n", stepperId, p_cmd[2]);
 
-	StepperReturnCode result = stepper_test_forward(stepperId, isForward);
+	StepperReturnCode result = stepper_test_signal_forward(stepperId, isForward);
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_test_forward failure: %d in %s\r\n", result, __FUNCTION__);
+		print_log("Error: stepper_test_signal_forward failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1610,7 +1610,7 @@ static void _on_test_stepper_forward(const uint8_t * p_cmd, const uint16_t lengt
 	send_peer_message(_reply, 2);
 }
 
-static void _on_test_stepper_clock(const uint8_t * p_cmd, const uint16_t length)
+static void _on_test_stepper_signal_clock(const uint8_t * p_cmd, const uint16_t length)
 {
 	/**
 	 * command format:
@@ -1636,12 +1636,116 @@ static void _on_test_stepper_clock(const uint8_t * p_cmd, const uint16_t length)
 
 	print_log("TEST_STEPPER_CLOCK, stepperId: %d, isFirstHalf: %d\r\n", stepperId, p_cmd[2]);
 
-	StepperReturnCode result = stepper_test_clock(stepperId, isFirstHalf);
+	StepperReturnCode result = stepper_test_signal_clock(stepperId, isFirstHalf);
 	if(result != STEPPER_OK)
 	{
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
-		print_log("Error: stepper_test_clock failure: %d in %s\r\n", result, __FUNCTION__);
+		print_log("Error: stepper_test_signal_clock failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 2);
+}
+
+static void _on_test_stepper_pulse_end(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	stepper id
+	 */
+
+	/**
+	 * reply format:
+	 * 0: 	command id
+	 * 1:	error code
+	 * 2:	StepperReturnCode
+	 * 3:	1/2 next pulse width
+	 * 4:	2/2 next pulse width
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 2)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 5);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t stepperId;
+	uint16_t nextPulseWidth = 0;
+
+	stepperId = p_cmd[1];
+
+	print_log("TEST_STEPPER_PULSE_END, stepperId: %d\r\n", stepperId);
+
+	StepperReturnCode result = on_interupt_stepper_pulse_end(stepperId, &nextPulseWidth);
+	_reply[2] = result;
+	_reply[3] = nextPulseWidth;
+	_reply[4] = nextPulseWidth >> 8;
+
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 5);
+		print_log("Error: on_interupt_stepper_pulse_end failure: %d in %s\r\n", result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0; 
+	send_peer_message(_reply, 5);
+}
+
+static void _on_test_stepper_force(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0: 	command id
+	 * 1:	stepper id
+	 * 2:	1/2 pulse width
+	 * 3:	2/2 pulse width
+	 * 4:	1/2 steps
+	 * 5:	2/2 steps
+	 */
+
+	/**
+	 * reply format:
+	 * 0: 	command id
+	 * 1:	error code
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 6)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	uint8_t stepperId;
+	uint16_t pulseWidth;
+	uint16_t steps;
+
+	stepperId = p_cmd[1];
+	pulseWidth = p_cmd[3];
+	pulseWidth <<= 8;
+	pulseWidth += p_cmd[2];
+	steps = p_cmd[5];
+	steps <<= 8;
+	steps += p_cmd[4];
+
+	print_log("TEST_STEPPER_FORCE, stepperId: %d, pulseWidth: %d, steps: %d\r\n", stepperId, pulseWidth, steps);
+
+	StepperReturnCode result = stepper_run_force(stepperId, pulseWidth, steps);
+	if(result != STEPPER_OK)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_run_force failure: %d in %s\r\n", result, __FUNCTION__);
 		return;
 	}
 
@@ -1730,14 +1834,20 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_TEST_TIMER:
 		_on_test_timer(p_command, length);
 		break;
-	case HOST_COMMAND_TEST_STEPPER_ENABLE:
-		_on_test_stepper_enable(p_command, length);
+	case HOST_COMMAND_TEST_STEPPER_SIGNAL_ENABLE:
+		_on_test_stepper_signal_enable(p_command, length);
 		break;
-	case HOST_COMMAND_TEST_STEPPER_FORWARD:
-		_on_test_stepper_forward(p_command, length);
+	case HOST_COMMAND_TEST_STEPPER_SIGNAL_FORWARD:
+		_on_test_stepper_signal_forward(p_command, length);
 		break;
-	case HOST_COMMAND_TEST_STEPPER_CLOCK:
-		_on_test_stepper_clock(p_command, length);
+	case HOST_COMMAND_TEST_STEPPER_SIGNAL_CLOCK:
+		_on_test_stepper_signal_clock(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_STEPPER_PULSE_END:
+		_on_test_stepper_pulse_end(p_command, length);
+		break;
+	case HOST_COMMAND_TEST_STEPPER_FORCE:
+		_on_test_stepper_force(p_command, length);
 		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);

@@ -220,7 +220,7 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps);
 
 StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
 
-StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps);
+StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint16_t steps);
 
 StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pState);
 
@@ -255,8 +255,8 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
 // if this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
 StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
 
-StepperReturnCode stepper_test_enable(const StepperId id, const bool isEnable);
-StepperReturnCode stepper_test_forward(const StepperId id, const bool isForward);
-StepperReturnCode stepper_test_clock(const StepperId id, const bool isFirstHalf);
+StepperReturnCode stepper_test_signal_enable(const StepperId id, const bool isEnable);
+StepperReturnCode stepper_test_signal_forward(const StepperId id, const bool isForward);
+StepperReturnCode stepper_test_signal_clock(const StepperId id, const bool isFirstHalf);
 
 #endif /* INC_STEPPER_H_ */

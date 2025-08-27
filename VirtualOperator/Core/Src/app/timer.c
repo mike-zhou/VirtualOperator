@@ -247,6 +247,16 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	return TIMER_OK;	
 }
 
+/**
+ * @brief 	Test the specified timer with designated pulse information. 
+ * 			An filed in the timer structure is set to indicate that the test is on-going,
+ * 			and the ISR will print something to indicate that the timer is running.
+ * 			The timer is restored to normal state after the test finishes.
+ * @param timerId Timer ID
+ * @param pulseWidth The PERIOD value in the timer hardware
+ * @param totalPulse Total count of timer events in this test
+ * @param logInterval The count of timer events for one printing
+ */
 TimerReturnCode timer_test(const TimerId timerId, const uint16_t pulseWidth, const uint16_t totalPulse, const uint16_t logInterval)
 {
 	if(timerId >= TIMER_ID_COUNT)

@@ -569,20 +569,15 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
 
     StepperData * pStepper = _steppers + (int)id;
 
-    if(pStepper->state != STEPPER_STATE_INITIALIZED &&
-        pStepper->state != STEPPER_STATE_READY)
-    {
-        return STEPPER_ERROR_WRONG_STATE;
-    }
-    if(pStepper->state == STEPPER_STATE_READY)
-    {
-        pStepper->state = STEPPER_STATE_INITIALIZED; // stepper lose its position if enabled or disabled
-    }
-
     GPIO_PinState pinState;
 
     if(isEnable)
     {
+        if(pStepper->state != STEPPER_STATE_INITIALIZED)
+        {
+            return STEPPER_ERROR_WRONG_STATE;
+        }
+
         if(pStepper->isEnableHigh)
             pinState = GPIO_PIN_SET;
         else
@@ -590,6 +585,13 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
     }
     else
     {
+        if(pStepper->state == STEPPER_STATE_UNINITIALIZED)
+        {
+            return STEPPER_ERROR_WRONG_STATE;
+        }
+
+        pStepper->state = STEPPER_STATE_INITIALIZED; // stepper loses position info if disabled.
+
         if(pStepper->isEnableHigh)
             pinState = GPIO_PIN_RESET;
         else
@@ -1105,7 +1107,7 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     return STEPPER_OK;
 }
 
-StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint8_t steps)
+StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidth, const uint16_t steps)
 {
     if(id >= STEPPER_ID_COUNT)
     {
@@ -1122,7 +1124,6 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
     pStepper->forcePulseWidth = pulseWidth;
     pStepper->stepsToRun = steps;
     pStepper->currentStep = 0;
-    pStepper->pulseState = FIRST_HALF;
     _set_clock_first_half(pStepper);
     pStepper->state = STEPPER_STATE_RUNNING_FORCED;
 
@@ -1292,6 +1293,7 @@ static StepperReturnCode _on_stepper_pulse_end_force(StepperData * const pSteppe
         return STEPPER_OK;
     }
 
+    pStepper->state = STEPPER_STATE_INITIALIZED;
     *pNextPulseWidth = 0;
 
     return STEPPER_OK;
@@ -1493,7 +1495,7 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
     return STEPPER_ERROR_WRONG_STATE;
 }
 
-StepperReturnCode stepper_test_enable(const StepperId id, const bool isEnable)
+StepperReturnCode stepper_test_signal_enable(const StepperId id, const bool isEnable)
 {
     if(id >= STEPPER_ID_COUNT)
     {
@@ -1527,7 +1529,7 @@ StepperReturnCode stepper_test_enable(const StepperId id, const bool isEnable)
     return STEPPER_OK;
 }
 
-StepperReturnCode stepper_test_forward(const StepperId id, const bool isForward)
+StepperReturnCode stepper_test_signal_forward(const StepperId id, const bool isForward)
 {
     if(id >= STEPPER_ID_COUNT)
     {
@@ -1561,7 +1563,7 @@ StepperReturnCode stepper_test_forward(const StepperId id, const bool isForward)
     return STEPPER_OK;
 }
 
-StepperReturnCode stepper_test_clock(const StepperId id, const bool isFirstHalf)
+StepperReturnCode stepper_test_signal_clock(const StepperId id, const bool isFirstHalf)
 {
     if(id >= STEPPER_ID_COUNT)
     {
