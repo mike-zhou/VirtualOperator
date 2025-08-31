@@ -156,7 +156,7 @@ static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
 
 static void _update_encoder_offset(StepperData * const pStepper)
 {
-    if(pStepper->encoderId == ENCODER_INVALID_ID)
+    if(pStepper->encoderId == ENCODER_ID_INVALID)
     {
         return;
     }
@@ -269,7 +269,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
 
         if(activePulseState == FIRST_HALF)
         {
-            if(pPassive->encoderId != ENCODER_INVALID_ID)
+            if(pPassive->encoderId != ENCODER_ID_INVALID)
             {
                 _update_encoder_offset(pPassive);
                 bool inSync = _is_stepper_in_sync(pPassive);
@@ -327,16 +327,17 @@ static StepperReturnCode _notify_passive_steppers(StepperData * const pActiveSte
         {
             // decouple passive stepper
             pActiveStepper->passiveStepperIds[i] = STEPPER_ID_INVALID; 
+        }
+    }
 
-            pActiveStepper->passiveCoupled = false;
-            for(int j=0; j<STEPPER_ID_COUNT; j++)
-            {
-                if(pActiveStepper->passiveStepperIds[j] != STEPPER_ID_INVALID)
-                {
-                    pActiveStepper->passiveCoupled = true;
-                    break;
-                }
-            }
+    // check if any passive stepper needs to be driven
+    pActiveStepper->passiveCoupled = false;
+    for(int j=0; j<STEPPER_ID_COUNT; j++)
+    {
+        if(pActiveStepper->passiveStepperIds[j] != STEPPER_ID_INVALID)
+        {
+            pActiveStepper->passiveCoupled = true;
+            break;
         }
     }
 
@@ -449,7 +450,7 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_ERROR_INVALID_RANGE;
     }
-    if(encoderId >= ENCODER_COUNT && encoderId != ENCODER_INVALID_ID)
+    if(encoderId >= ENCODER_ID_COUNT && encoderId != ENCODER_ID_INVALID)
     {
         return STEPPER_ERROR_INVALID_ENCODER_ID;
     }
@@ -1231,7 +1232,7 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
     {
         return STEPPER_ERROR_WRONG_STATE;
     }
-    if(pStepper->encoderId == ENCODER_INVALID_ID)
+    if(pStepper->encoderId == ENCODER_ID_INVALID)
     {
         return STEPPER_ERROR_INVALID_ENCODER_ID;
     }
@@ -1304,7 +1305,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     if(pStepper->pulseState == FIRST_HALF)
     {
         // first clock pulse has finished, check if stepper has arrived at the expected position
-        if(pStepper->encoderId != ENCODER_INVALID_ID)
+        if(pStepper->encoderId != ENCODER_ID_INVALID)
         {
             _update_encoder_offset(pStepper);
             bool inSync = _is_stepper_in_sync(pStepper);
@@ -1362,10 +1363,10 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     else
     {
         uint32_t remainingSteps = pStepper->stepsToRun - pStepper->currentStep;
-        if(pStepper->rampdownPulseCount > remainingSteps)
+        if(pStepper->rampdownPulseCount >= remainingSteps)
         {
             // deaccelerating
-            uint32_t index = pStepper->rampdownPulseCount - remainingSteps - 1;
+            uint32_t index = pStepper->rampdownPulseCount - remainingSteps;
             width = pStepper->pRampdownPulseWidths[index];
         }
     }
@@ -1593,6 +1594,43 @@ StepperReturnCode stepper_test_signal_clock(const StepperId id, const bool isFir
     }
     
     pStepper->pulseState = isFirstHalf ? FIRST_HALF : SECOND_HALF;
+
+    return STEPPER_OK;
+}
+
+StepperReturnCode stepper_test_state_ready(const StepperId id)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_ERROR_INVALID_ID;
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+    if(pStepper->state != STEPPER_STATE_INITIALIZED)
+    {
+        return STEPPER_ERROR_WRONG_STATE;
+    }
+
+    pStepper->isForward = true;
+    pStepper->offset = 0;
+    if(pStepper->encoderId != ENCODER_ID_INVALID)
+    {
+        pStepper->encodeOffset = 0;
+        pStepper->encoderCount = encoder_get_count(pStepper->encoderId);
+        pStepper->maxEncoderOffsetError = 0;
+    }
+
+    pStepper->stepsToRun = 0;
+    pStepper->currentStep = 0;
+    pStepper->currentPulseWidth = 0;
+    pStepper->pulseState = FIRST_HALF;
+    for(int i=0; i < STEPPER_ID_COUNT; i++)
+    {
+        pStepper->passiveStepperIds[i] = STEPPER_ID_INVALID;
+    }
+    pStepper->passiveCoupled = false;
+
+    pStepper->state = STEPPER_STATE_READY;
 
     return STEPPER_OK;
 }

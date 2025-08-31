@@ -251,12 +251,20 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
 */
 StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth);
 
-// this function is called when the clock pulse finishes, pNextPulseWidth returns the width of next pulse.
-// if this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
+/**
+ * This function is called when the clock pulse finishes, pNextPulseWidth returns the width of next pulse.
+ * If this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
+ */
 StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
 
 StepperReturnCode stepper_test_signal_enable(const StepperId id, const bool isEnable);
 StepperReturnCode stepper_test_signal_forward(const StepperId id, const bool isForward);
 StepperReturnCode stepper_test_signal_clock(const StepperId id, const bool isFirstHalf);
+
+/**
+ * This function sets the designated stepper state to STEPPER_STATE_READY in order to test 
+ * stepper_run_active() and stepper_run_force()
+ */
+StepperReturnCode stepper_test_state_ready(const StepperId id);
 
 #endif /* INC_STEPPER_H_ */

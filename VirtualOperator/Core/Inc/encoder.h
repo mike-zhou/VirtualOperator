@@ -5,16 +5,16 @@
 
 typedef enum 
 {
-    ENCODER_0 = 0,
-    ENCODER_1,
-    ENCODER_2,
-    ENCODER_3,
-    ENCODER_4,
-    ENCODER_5,
-    ENCODER_6,
-    ENCODER_7,
-    ENCODER_COUNT,
-    ENCODER_INVALID_ID = 0xFF
+    ENCODER_ID_0 = 0,
+    ENCODER_ID_1,
+    ENCODER_ID_2,
+    ENCODER_ID_3,
+    ENCODER_ID_4,
+    ENCODER_ID_5,
+    ENCODER_ID_6,
+    ENCODER_ID_7,
+    ENCODER_ID_COUNT,
+    ENCODER_ID_INVALID = 0xFF
 } EncoderId;
 
 uint16_t encoder_get_count(const EncoderId encoderId);
