@@ -1294,6 +1294,9 @@ static StepperReturnCode _on_stepper_pulse_end_force(StepperData * const pSteppe
         return STEPPER_OK;
     }
 
+    // has run designated steps
+    pStepper->currentStep = 0;
+    pStepper->stepsToRun = 0;
     pStepper->state = STEPPER_STATE_INITIALIZED;
     *pNextPulseWidth = 0;
 
@@ -1341,9 +1344,31 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         return rc;
     }
 
+    if(pStepper->isForward)
+    {
+        pStepper->offset++;
+        if(pStepper->offset >= pStepper->range)
+        {
+            *pNextPulseWidth = 0;
+            return STEPPER_ERROR_OUT_OF_RANGE;
+        }
+    }
+    else
+    {
+        if(pStepper->offset == 0)
+        {
+            *pNextPulseWidth = 0;
+            return STEPPER_ERROR_OUT_OF_RANGE;
+        }
+        pStepper->offset--;
+    }
+
     pStepper->currentStep += 1;
     if(pStepper->currentStep == pStepper->stepsToRun)
     {
+        // has run the designated steps
+        pStepper->currentStep = 0;
+        pStepper->stepsToRun = 0;
         pStepper->state = STEPPER_STATE_READY;
         *pNextPulseWidth = 0;
         return STEPPER_OK;

@@ -2013,6 +2013,7 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		break;
 	case HOST_COMMAND_RUN_STEPPER_ACTIVE:
 		_on_run_stepper_active(p_command, length);
+		break;
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);
 		break;
