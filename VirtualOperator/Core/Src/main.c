@@ -231,6 +231,9 @@ int main(void)
   timer_init_data_structure();
   position_detector_init_data();
 
+  // start fix timer
+  timer_start_fix_timer();
+
   mainLoopCount = 0;
   /* USER CODE END 2 */
 

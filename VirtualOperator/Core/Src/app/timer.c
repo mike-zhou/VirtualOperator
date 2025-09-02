@@ -215,19 +215,6 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 		_fixTimer.steppers[stepperId].firstPulseSkipped = false;
 		_fixTimer.steppers[stepperId].stepperId = stepperId; // indicate the stepper is being clocked
 		
-		if(_fixTimer.state == TIMER_STATE_IDLE)
-		{
-			_fixTimer.state = TIMER_STATE_BUSY;
-			__HAL_HRTIM_SETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, 1);
-			HAL_StatusTypeDef rc = HAL_HRTIM_SimpleBaseStart_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
-			if(rc != HAL_OK)
-			{
-				_fixTimer.state = TIMER_STATE_IDLE;
-				print_log("Error: timer_start(), failed to start fix timer, rc: %d\r\n", rc);
-				return TIMER_ERROR_INTERNAL_FAILURE;
-			}
-		}
-
 		return TIMER_OK;
 	}
 
@@ -245,6 +232,24 @@ TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, co
 	}
 
 	return TIMER_OK;	
+}
+
+TimerReturnCode timer_start_fix_timer()
+{
+	if(_fixTimer.state == TIMER_STATE_IDLE)
+	{
+		_fixTimer.state = TIMER_STATE_BUSY;
+		__HAL_HRTIM_SETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A, 1);
+		HAL_StatusTypeDef rc = HAL_HRTIM_SimpleBaseStart_IT(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
+		if(rc != HAL_OK)
+		{
+			_fixTimer.state = TIMER_STATE_IDLE;
+			print_log("Error: timer_start(), failed to start fix timer, rc: %d\r\n", rc);
+			return TIMER_ERROR_INTERNAL_FAILURE;
+		}
+	}
+
+	return TIMER_OK;
 }
 
 /**
@@ -567,8 +572,6 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 			return;
 		}
 
-		bool stopTimer = true;
-		
 		for(int i=0; i<STEPPER_ID_COUNT; i++)
 		{
 			struct Stepper * pStepper = _fixTimer.steppers + i;
@@ -580,13 +583,11 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 			if(pStepper->firstPulseSkipped == false)
 			{
 				pStepper->firstPulseSkipped = true;
-				stopTimer = false;
 				continue;
 			}
 
 			if(pStepper->remainingPulseWidth > 1)
 			{
-				stopTimer = false;
 				pStepper->remainingPulseWidth -= 1;
 			}
 			else
@@ -603,7 +604,6 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 					}
 					else
 					{
-						stopTimer = false;
 						pStepper->remainingPulseWidth = newPulseWidth;
 					}
 				}
@@ -613,12 +613,6 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 					pStepper->stepperId = STEPPER_ID_INVALID;
 				}
 			}
-		}
-
-		if(stopTimer)
-		{
-			// no stepper needs to be clocked
-			_stop_fix_timer();
 		}
 
 		uint16_t count = __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A);
@@ -648,7 +642,6 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 		if(_fixTimer.pulseIndexTesting == _fixTimer.totalPulseTesting)
 		{
 			print_log("TEST end, FixTimer pulse: %d/%d, ISR time: %d\r\n", _fixTimer.pulseIndexTesting, _fixTimer.totalPulseTesting, __HAL_HRTIM_GETCOUNTER(_fixTimer.pTimerHandle, HRTIM_TIMERINDEX_TIMER_A));
-			_stop_fix_timer();
 			_fixTimer.isTesting = false;
 
 			_maxFixTimerIsrPeriod = 0;

@@ -49,6 +49,7 @@ typedef enum
 void timer_init_data_structure();
 
 TimerReturnCode timer_start(const TimerId timerId, const StepperId stepperId, const uint16_t pulseWidth);
+TimerReturnCode timer_start_fix_timer();
 TimerReturnCode timer_test(const TimerId timerId, const uint16_t pulseWidth, const uint16_t totalPulse, const uint16_t logInterval);
 TimerReturnCode timer_stop(const TimerId timerId);
 TimerReturnCode timer_set_prescaler(const TimerId timerId, const uint16_t prescaler);

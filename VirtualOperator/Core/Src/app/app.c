@@ -1236,21 +1236,20 @@ static void _on_run_stepper_passive(const uint8_t * p_cmd, const uint16_t length
 	send_peer_message(_reply, 2);
 }
 
-static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
+static void _on_set_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 {
 	/**
 	 * command format:
 	 * 0:	command id
 	 * 1:	stepper id
-	 * 2:	timer id
-	 * 3:	1/4 steps
-	 * 4:	2/4 steps
-	 * 5:	3/4 steps
-	 * 6:	4/4 steps
+	 * 2:	1/4 steps
+	 * 3:	2/4 steps
+	 * 4:	3/4 steps
+	 * 5:	4/4 steps
 	 */
 
 	_reply[0] = p_cmd[0];
-	if(length != 7)
+	if(length != 6)
 	{
 		_reply[1] = 1; 
 		send_peer_message(_reply, 2);
@@ -1259,15 +1258,14 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	}
 
 	StepperId stepperId = (StepperId)p_cmd[1];
-	TimerId timerId = (TimerId)p_cmd[2];
 
-	uint32_t steps = p_cmd[6];
+	uint32_t steps = p_cmd[5];
 	steps <<= 8;
-	steps += p_cmd[5];
-	steps <<=8;
 	steps += p_cmd[4];
-	steps <<= 8;
+	steps <<=8;
 	steps += p_cmd[3];
+	steps <<= 8;
+	steps += p_cmd[2];
 
 	StepperReturnCode stepper_result = stepper_run_active(stepperId, steps);
 	if(stepper_result != STEPPER_OK)
@@ -1275,25 +1273,6 @@ static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 		_reply[1] = 2; 
 		send_peer_message(_reply, 2);
 		print_log("Error: stepper_run_active() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
-		return;
-	}
-
-	uint16_t pulseWidth;
-	stepper_result = stepper_get_startup_pulse_width(stepperId, &pulseWidth);
-	if(stepper_result != STEPPER_OK)
-	{
-		_reply[1] = 3; 
-		send_peer_message(_reply, 2);
-		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
-		return;
-	}
-
-	TimerReturnCode timer_result = timer_start(timerId, stepperId, pulseWidth);
-	if(timer_result != TIMER_OK)
-	{
-		_reply[1] = 4; 
-		send_peer_message(_reply, 2);
-		print_log("Error: timer_start() failure: %d in %s\r\n", timer_result, __FUNCTION__);
 		return;
 	}
 
@@ -1851,6 +1830,85 @@ static void _on_test_stepper_running_active(const uint8_t * p_cmd, const uint16_
 	send_peer_message(_reply, 2);
 }
 
+static void _on_run_stepper_active(const uint8_t * p_cmd, const uint16_t length)
+{
+	/**
+	 * command format:
+	 * 0:	command id
+	 * 1:	stepper id
+	 * 2:	timer id
+	 */
+
+	_reply[0] = p_cmd[0];
+	if(length != 3)
+	{
+		_reply[1] = 1; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	const StepperId stepperId = (StepperId)p_cmd[1];
+	const TimerId timerId = (TimerId)p_cmd[2];
+
+	if(stepperId >= STEPPER_ID_COUNT)
+	{
+		_reply[1] = 2; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid stepper id: %d in %s\r\n", stepperId, __FUNCTION__);
+		return;
+	}
+	if(timerId >= TIMER_ID_COUNT)
+	{
+		_reply[1] = 3; 
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid timer id: %d in %s\r\n", timerId, __FUNCTION__);
+		return;
+	}
+
+	StepperState stepperState;
+	StepperReturnCode stepperResult;
+	TimerReturnCode timerResult;
+	uint16_t pulseWidth;
+
+	stepperResult = stepper_get_state(stepperId, &stepperState);
+	if(stepperResult != STEPPER_OK)
+	{
+		_reply[1] = 4; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_get_state() failure: %d in %s\r\n", stepperResult, __FUNCTION__);
+		return;
+	}
+	if(stepperState != STEPPER_STATE_RUNNING_ACTIVE)
+	{
+		_reply[1] = 5; 
+		send_peer_message(_reply, 2);
+		print_log("Error: wrong stepper state: %d in %s\r\n", stepperState, __FUNCTION__);
+		return;
+	}
+
+	stepperResult = stepper_get_startup_pulse_width(stepperId, &pulseWidth);
+	if(stepperResult != STEPPER_OK)
+	{
+		_reply[1] = 6; 
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_get_startup_pulse_width() failure: %d in %s\r\n", stepperResult, __FUNCTION__);
+		return;
+	}
+
+	timerResult = timer_start(timerId, stepperId, pulseWidth);
+	if(timerResult != TIMER_OK)
+	{
+		_reply[1] = 7; 
+		send_peer_message(_reply, 2);
+		print_log("Error: timer_start() failure: %d in %s\r\n", timerResult, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0;
+	send_peer_message(_reply, 2);
+}
+
 void on_host_command(const uint8_t * p_command, const uint16_t length)
 {
 	if(length == 0)
@@ -1920,8 +1978,8 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_RUN_STEPPER_PASSIVE:
 		_on_run_stepper_passive(p_command, length);
 		break;
-	case HOST_COMMAND_RUN_STEPPER_ACTIVE:
-		_on_run_stepper_active(p_command, length);
+	case HOST_COMMAND_SET_STEPPER_ACTIVE:
+		_on_set_stepper_active(p_command, length);
 		break;
 	case HOST_COMMAND_SET_TIMER_PRESCALER:
 		_on_set_timer_prescaler(p_command, length);
@@ -1953,6 +2011,8 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_TEST_STEPPER_ACTIVE:
 		_on_test_stepper_running_active(p_command, length);
 		break;
+	case HOST_COMMAND_RUN_STEPPER_ACTIVE:
+		_on_run_stepper_active(p_command, length);
 	default:
 		print_log("Error: unknown host command: %d in %s\r\n", host_command, __FUNCTION__);
 		break;
