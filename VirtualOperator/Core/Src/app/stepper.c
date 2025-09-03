@@ -495,6 +495,59 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_ERROR_WRONG_INIT_ORDER;
     }
+
+    GPIO_PinState pinState;
+    
+    // check stepper's direction
+    pinState = HAL_GPIO_ReadPin(pStepper->pGpioPortForward, 0x1 << pStepper->gpioPinIndexForward);
+    if(pStepper->isForwardHigh)
+    {
+        if(pinState == GPIO_PIN_SET)
+        {
+            pStepper->isForward = true;
+        }
+        else
+        {
+            pStepper->isForward = false;
+        }
+    }
+    else
+    {
+        if(pinState == GPIO_PIN_SET)
+        {
+            pStepper->isForward = false;
+        }
+        else
+        {
+            pStepper->isForward = true;
+        }
+    }
+
+    // check if stepper is enabled
+    pinState = HAL_GPIO_ReadPin(pStepper->pGpioPortEnable, 0x1 << pStepper->gpioPinIndexEnable);
+    if(pStepper->isEnableHigh)
+    {
+        if(pinState == GPIO_PIN_SET)
+        {
+            pStepper->isEnabled = true;
+        }
+        else
+        {
+            pStepper->isEnabled = false;
+        }
+    }
+    else
+    {
+        if(pinState == GPIO_PIN_SET)
+        {
+            pStepper->isEnabled = false;
+        }
+        else
+        {
+            pStepper->isEnabled = true;
+        }
+    }
+
     pStepper->state = STEPPER_STATE_INITIALIZED;
 
     return STEPPER_OK;
