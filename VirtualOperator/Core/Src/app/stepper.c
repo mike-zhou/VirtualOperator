@@ -1044,6 +1044,7 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
 
     pStepper->currentStep = 0;
     pStepper->state = STEPPER_STATE_RETURN_TO_HOME_BOUNDARY;
+    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
     _set_clock_first_half(pStepper);
 
     return STEPPER_OK;
@@ -1467,8 +1468,7 @@ static StepperReturnCode _on_stepper_pulse_end_to_home(StepperData * const pStep
 
     // second half of clock pulse has finished.
     _set_clock_first_half(pStepper);
-    *pNextPulseWidth = pStepper->pRampupPulseWidths[0];
-    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
+    *pNextPulseWidth = pStepper->currentPulseWidth;
 
     bool atHomeBoundary = _is_stepper_at_home_boundary(pStepper);
     if(!atHomeBoundary)
@@ -1495,8 +1495,7 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
 
     // second half of clock pulse has finished.
     _set_clock_first_half(pStepper);
-    *pNextPulseWidth = pStepper->pRampupPulseWidths[0];
-    pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
+    *pNextPulseWidth = pStepper->currentPulseWidth;
 
     bool atHomeBoundary = _is_stepper_at_home_boundary(pStepper);
     if(atHomeBoundary)
