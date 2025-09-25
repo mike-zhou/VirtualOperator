@@ -550,6 +550,8 @@ StepperReturnCode stepper_set_controls(
 
     pStepper->state = STEPPER_STATE_INITIALIZED;
 
+    _set_clock_first_half(pStepper);
+
     return STEPPER_OK;
 }
 
@@ -654,6 +656,11 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable)
 
     HAL_GPIO_WritePin(pStepper->pGpioPortEnable, 1 << pStepper->gpioPinIndexEnable, pinState);
     pStepper->isEnabled = isEnable;
+
+    if(!isEnable)
+    {
+        _set_clock_first_half(pStepper);
+    }
 
     return STEPPER_OK;
 }
@@ -1045,7 +1052,6 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
     pStepper->currentStep = 0;
     pStepper->state = STEPPER_STATE_RETURN_TO_HOME_BOUNDARY;
     pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
-    _set_clock_first_half(pStepper);
 
     return STEPPER_OK;
 }
@@ -1087,7 +1093,6 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
     pStepper->stepsToRun = steps;
     pStepper->currentStep = 0;
     pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
-    _set_clock_first_half(pStepper);
 
     pStepper->state = STEPPER_STATE_RUNNING_ACTIVE;
 
@@ -1154,7 +1159,6 @@ StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const 
     pActive->passiveStepperIds[passiveStepperId] = passiveStepperId;
     pActive->passiveCoupled = true;
 
-    _set_clock_first_half(pPassive);
     pPassive->passiveStepIndex = 0;
     pPassive->currentPulseWidth = 0;
     pPassive->state = STEPPER_STATE_RUNNING_PASSIVE;
@@ -1179,7 +1183,6 @@ StepperReturnCode stepper_run_force(const StepperId id, const uint16_t pulseWidt
     pStepper->forcePulseWidth = pulseWidth;
     pStepper->stepsToRun = steps;
     pStepper->currentStep = 0;
-    _set_clock_first_half(pStepper);
     pStepper->state = STEPPER_STATE_RUNNING_FORCED;
 
     return STEPPER_OK;
