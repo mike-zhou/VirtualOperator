@@ -1218,7 +1218,7 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     }
 
     uint8_t tmpByte;
-    uint8_t tmpInt;
+    uint32_t tmpInt;
     StepperData * pStepper = _steppers + (int)id;
     
     p_buffer[0] = (uint8_t)pStepper->state;
@@ -1513,6 +1513,9 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
     if(pStepper->currentStep == pStepper->homeBoundaryToReadySteps)
     {
         *pNextPulseWidth = 0;
+        
+        pStepper->currentStep = 0;
+        pStepper->offset = 0;
         pStepper->state = STEPPER_STATE_READY;
     }
 
