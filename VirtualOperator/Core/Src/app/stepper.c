@@ -291,6 +291,23 @@ static StepperReturnCode _on_active_stepper_pulse_end(
             {
                 pPassive->state = STEPPER_STATE_READY;
             }
+
+            if(pPassive->isForward)
+            {
+                pPassive->offset++;
+                if(pPassive->offset >= pPassive->range)
+                {
+                    return STEPPER_ERROR_OUT_OF_RANGE;
+                }
+            }
+            else
+            {
+                if(pPassive->offset == 0)
+                {
+                    return STEPPER_ERROR_OUT_OF_RANGE;
+                }
+                pPassive->offset--;
+            }
         }
 
         return STEPPER_OK;
