@@ -263,7 +263,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
 
         if(_is_stepper_at_end_boundary(pPassive) || _is_stepper_at_home_boundary(pPassive))
         {
-            on_stepper_out_of_scope_interrupt();
+            on_stepper_out_of_scope_interrupt(passiveStepperId);
             return STEPPER_ERROR_OUT_OF_RANGE;
         }
 
@@ -275,7 +275,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
                 bool inSync = _is_stepper_in_sync(pPassive);
                 if(!inSync)
                 {
-                    on_stepper_out_of_sync_interrupt();
+                    on_stepper_out_of_sync_interrupt(passiveStepperId);
                     pPassive->state = STEPPER_STATE_OUT_OF_SYNC;
                     return STEPPER_ERROR_OUT_OF_SYNC;
                 }
@@ -1388,7 +1388,8 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             bool inSync = _is_stepper_in_sync(pStepper);
             if(!inSync)
             {
-                on_stepper_out_of_sync_interrupt();
+                uint32_t stepperId = (pStepper - _steppers) / sizeof(StepperData);
+                on_stepper_out_of_sync_interrupt((StepperId)stepperId);
                 *pNextPulseWidth = 0;
                 pStepper->state = STEPPER_STATE_OUT_OF_SYNC;
                 return STEPPER_ERROR_OUT_OF_SYNC;
@@ -1561,7 +1562,7 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
         if(_is_stepper_at_home_boundary(pStepper) ||
             _is_stepper_at_end_boundary(pStepper))
         {
-            on_stepper_out_of_scope_interrupt();
+            on_stepper_out_of_scope_interrupt(id);
             *pNextPulseWidth = 0;
             return STEPPER_ERROR_OUT_OF_RANGE;
         }

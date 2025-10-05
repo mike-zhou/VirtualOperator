@@ -481,8 +481,8 @@ static void _on_flex_timer(const TimerId timerId)
 		}
 		else
 		{
-			print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pTimer->stepperId);
 			_stop_flex_timer(timerId);
+			print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pTimer->stepperId);
 		}
 
 		uint16_t count = __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle);
@@ -511,8 +511,8 @@ static void _on_flex_timer(const TimerId timerId)
 
 		if(pTimer->pulseIndexTesting == pTimer->totalPulseTesting)
 		{
-			print_log("TEST end, FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 			_stop_flex_timer(timerId);
+			print_log("TEST end, FlexTimer: %d, pulse: %d/%d, ISR time: %d\r\n", timerId, pTimer->pulseIndexTesting, pTimer->totalPulseTesting, __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle));
 			pTimer->isTesting = false;
 
 			_maxFlexTimerIsrPeriod = 0;
