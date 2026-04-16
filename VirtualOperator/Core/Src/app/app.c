@@ -1280,6 +1280,106 @@ static void _on_set_stepper_active(const uint8_t * p_cmd, const uint16_t length)
 	send_peer_message(_reply, 2);
 }
 
+static void _on_set_stepper_cross_boundary(const uint8_t * p_cmd, const uint16_t length)
+{
+    /**
+    * command format:
+    * 0: command id
+    * 1: stepper id
+    * 2: crossBoundaryEnabled
+    * 3: 1/4 negativeRange
+    * 4: 2/4 negativeRange
+    * 5: 3/4 negativeRange
+    * 6: 4/4 negativeRange
+    * 7: item0 enabled
+    * 8: item0 1/4 offset
+    * 9: item0 2/4 offset
+    * 10: item0 3/4 offset
+    * 11: item0 4/4 offset
+    * 12: item0 1/2 error
+    * 13: item0 2/2 error
+    * 14: item1 enabled
+    * 15: item1 1/4 offset
+    * 16: item1 2/4 offset
+    * 17: item1 3/4 offset
+    * 18: item1 4/4 offset
+    * 19: item1 1/2 error
+    * 20: item1 2/2 error
+    * 21: item2 enabled
+    * 22: item2 1/4 offset
+    * 23: item2 2/4 offset
+    * 24: item2 3/4 offset
+    * 25: item2 4/4 offset
+    * 26: item2 1/2 error
+    * 27: item2 2/2 error
+    * 28: item3 enabled
+    * 29: item3 1/4 offset
+    * 30: item3 2/4 offset
+    * 31: item3 3/4 offset
+    * 32: item3 4/4 offset
+    * 33: item3 1/2 error
+    * 34: item3 2/2 error
+    */
+
+	_reply[0] = p_cmd[0];
+	if(length != 35)
+	{
+		_reply[1] = 1;
+		send_peer_message(_reply, 2);
+		print_log("Error: invalid length: %d in %s\r\n", length, __FUNCTION__);
+		return;
+	}
+
+	StepperId stepperId = (StepperId)p_cmd[1];
+
+	bool crossBoundaryEnabled = (p_cmd[2] == 0) ? false : true;
+	int32_t negativeRange = ((int32_t)p_cmd[6] << 24) | ((int32_t)p_cmd[5] << 16) | ((int32_t)p_cmd[4] << 8) | (int32_t)p_cmd[3];
+
+	bool boundary0Enabled = (p_cmd[7] == 0) ? false : true;
+	int32_t boundary0Offset = ((int32_t)p_cmd[11] << 24) | ((int32_t)p_cmd[10] << 16) | ((int32_t)p_cmd[9] << 8) | (int32_t)p_cmd[8];
+	uint16_t boundary0Error = ((uint16_t)p_cmd[13] << 8) | (uint16_t)p_cmd[12];
+
+	bool boundary1Enabled = (p_cmd[14] == 0) ? false : true;
+	int32_t boundary1Offset = ((int32_t)p_cmd[18] << 24) | ((int32_t)p_cmd[17] << 16) | ((int32_t)p_cmd[16] << 8) | (int32_t)p_cmd[15];
+	uint16_t boundary1Error = ((uint16_t)p_cmd[20] << 8) | (uint16_t)p_cmd[19];
+
+	bool boundary2Enabled = (p_cmd[21] == 0) ? false : true;
+	int32_t boundary2Offset = ((int32_t)p_cmd[25] << 24) | ((int32_t)p_cmd[24] << 16) | ((int32_t)p_cmd[23] << 8) | (int32_t)p_cmd[22];
+	uint16_t boundary2Error = ((uint16_t)p_cmd[27] << 8) | (uint16_t)p_cmd[26];
+
+	bool boundary3Enabled = (p_cmd[28] == 0) ? false : true;
+	int32_t boundary3Offset = ((int32_t)p_cmd[32] << 24) | ((int32_t)p_cmd[31] << 16) | ((int32_t)p_cmd[30] << 8) | (int32_t)p_cmd[29];
+	uint16_t boundary3Error = ((uint16_t)p_cmd[34] << 8) | (uint16_t)p_cmd[33];
+
+	StepperReturnCode stepper_result = stepper_set_cross_boundary(
+			stepperId,
+			crossBoundaryEnabled,
+			negativeRange,
+			boundary0Enabled,
+			boundary0Offset,
+			boundary0Error,
+			boundary1Enabled,
+			boundary1Offset,
+			boundary1Error,
+			boundary2Enabled,
+			boundary2Offset,
+			boundary2Error,
+			boundary3Enabled,
+			boundary3Offset,
+			boundary3Error);
+
+	if(stepper_result != STEPPER_OK)
+	{
+		_reply[1] = 2;
+		send_peer_message(_reply, 2);
+		print_log("Error: stepper_set_cross_boundary() failure: %d in %s\r\n", stepper_result, __FUNCTION__);
+		return;
+	}
+
+	_reply[1] = 0;
+	send_peer_message(_reply, 2);
+}
+
 static void _on_set_timer_prescaler(const uint8_t * p_cmd, const uint16_t length)
 {
 	/**
@@ -1981,6 +2081,9 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 	case HOST_COMMAND_SET_STEPPER_ACTIVE:
 		_on_set_stepper_active(p_command, length);
 		break;
+	case HOST_COMMAND_SET_STEPPER_CROSS_BOUNDARY:
+		_on_set_stepper_cross_boundary(p_command, length);
+		break;
 	case HOST_COMMAND_SET_TIMER_PRESCALER:
 		_on_set_timer_prescaler(p_command, length);
 		break;
@@ -2022,12 +2125,10 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 
 void on_stepper_out_of_sync_interrupt(const StepperId stepperId)
 {
-
 }
 
 void on_stepper_out_of_scope_interrupt(const StepperId stepperId)
 {
-
 }
 
 void on_position_detector_critical_mask()

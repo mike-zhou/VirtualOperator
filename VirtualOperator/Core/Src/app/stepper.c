@@ -13,12 +13,27 @@
 
 #define MAX_UINT16_ARRAY_LENGTH 4096
 #define MAX_RAMP_CLOCKS (MAX_UINT16_ARRAY_LENGTH >> 1)
+#define CROSS_BOUDNARY_MAX_ITEMS 4
+
 
 typedef enum _PulseState
 {
     FIRST_HALF,          
     SECOND_HALF         
 } PulseState;
+
+typedef struct _CrossBoundary
+{
+	bool enabled;
+	int32_t negativeRange;
+
+	struct Boundary
+	{
+		bool enabled;
+		int32_t offset;
+		int16_t error;
+	} boundaries[CROSS_BOUDNARY_MAX_ITEMS];
+} CrossBoundary;
 
 typedef struct _Stepper
 {
@@ -40,7 +55,7 @@ typedef struct _Stepper
     GPIO_TypeDef * pGpioPortClock;
     uint8_t gpioPinIndexClock;
     uint16_t homeBoundaryToReadySteps; 
-    uint32_t range;
+    int32_t range;
     uint16_t stepsPerRotation;
     EncoderId encoderId;
     uint16_t encoderCountsPerRotation;
@@ -79,6 +94,11 @@ typedef struct _Stepper
     uint16_t forcePulseWidth;
 
     /**
+     * cross boundary
+     */
+    CrossBoundary crossBoundary;
+
+    /**
      * dynamic data
      */
 
@@ -86,14 +106,14 @@ typedef struct _Stepper
 
     bool isEnabled;
     bool isForward;
-    uint32_t offset;
+    int32_t offset;
 
     int32_t encodeOffset;
     uint16_t encoderCount;
     uint8_t maxEncoderOffsetError;
 
-    uint32_t stepsToRun;
-    uint32_t currentStep;
+    int32_t stepsToRun;
+    int32_t currentStep;
     uint16_t currentPulseWidth;
 
     PulseState pulseState;
@@ -154,6 +174,71 @@ static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
         return false;
 }
 
+static bool _boundary_detector_flips(StepperData * const pStepper)
+{
+	static bool prevHomeDetectorStatus = false;
+	static bool prevEndDetectorStatus = false;
+
+	bool stateChanged;
+
+	bool currentHomeDetectorStatus = _is_stepper_at_home_boundary(pStepper);
+	bool currentEndDetectorStatus = _is_stepper_at_end_boundary(pStepper);
+
+	if(prevHomeDetectorStatus != currentHomeDetectorStatus ||
+	   prevEndDetectorStatus != currentEndDetectorStatus) {
+		stateChanged = true;
+	}
+	else {
+		stateChanged = false;
+	}
+
+	prevHomeDetectorStatus = currentHomeDetectorStatus;
+	prevEndDetectorStatus = currentEndDetectorStatus;
+
+	return stateChanged;
+}
+
+static bool _is_stepper_out_of_range(StepperData * const pStepper)
+{
+	if(pStepper->crossBoundary.enabled)
+	{
+		if(_boundary_detector_flips(pStepper))
+		{
+    		bool boundaryFailure = false;
+
+    		for(int i = 0; i < CROSS_BOUDNARY_MAX_ITEMS; i++)
+    		{
+    			struct Boundary * pBoundary = pStepper->crossBoundary.boundaries + i;
+
+    			if(!pBoundary->enabled) {
+    				continue;
+    			}
+
+    			// a boundary checking is enabled
+    			boundaryFailure = true;
+    			if(pStepper->offset >= (pBoundary->offset - pBoundary->error) &&
+    			   pStepper->offset <= (pBoundary->offset + pBoundary->error)) {
+    				// in one expected scope
+    				boundaryFailure = false;
+    				break;
+    			}
+    		}
+
+    		if(boundaryFailure)
+    		{
+				return true;
+     		}
+		}
+	}
+	else if(_is_stepper_at_home_boundary(pStepper) ||
+            _is_stepper_at_end_boundary(pStepper))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 static void _update_encoder_offset(StepperData * const pStepper)
 {
     if(pStepper->encoderId == ENCODER_ID_INVALID)
@@ -212,10 +297,15 @@ static bool _is_stepper_in_sync(StepperData * const pStepper)
 
     if(error > pStepper->maxEncoderOffsetError)
     {
-        pStepper->maxEncoderOffsetError = (uint8_t)error;
+    	if(error > UINT8_MAX) {
+    		pStepper->maxEncoderOffsetError = UINT8_MAX;
+    	}
+    	else {
+    		pStepper->maxEncoderOffsetError = (uint8_t)error;
+    	}
     }
 
-    if(error >=pStepper->encoderOffsetErrorThreshold)
+    if(error >= pStepper->encoderOffsetErrorThreshold)
     {
         return true;
     }
@@ -243,77 +333,87 @@ static StepperReturnCode _on_active_stepper_pulse_end(
     
     StepperData * pPassive = _steppers + (int)passiveStepperId;
 
-    if(pPassive->state == STEPPER_STATE_RUNNING_PASSIVE)
-    {
-        if(pPassive->passiveStepIndex >= pPassive->passiveStepsCount)
-        {
-            return STEPPER_ERROR_INTERNAL_DATA_ERROR;
-        }
-
-        uint32_t expectedActiveStepIndex = pPassive->pPassiveStepArray[pPassive->passiveStepIndex];
-
-        if(activeStepIndex < expectedActiveStepIndex)
-        {
-            return STEPPER_OK;
-        }
-        if(activeStepIndex > expectedActiveStepIndex)
-        {
-            return STEPPER_ERROR_MISSED_ACTIVE_PULSE;
-        }
-
-        if(_is_stepper_at_end_boundary(pPassive) || _is_stepper_at_home_boundary(pPassive))
-        {
-            on_stepper_out_of_scope_interrupt(passiveStepperId);
-            return STEPPER_ERROR_OUT_OF_RANGE;
-        }
-
-        if(activePulseState == FIRST_HALF)
-        {
-            if(pPassive->encoderId != ENCODER_ID_INVALID)
-            {
-                _update_encoder_offset(pPassive);
-                bool inSync = _is_stepper_in_sync(pPassive);
-                if(!inSync)
-                {
-                    on_stepper_out_of_sync_interrupt(passiveStepperId);
-                    pPassive->state = STEPPER_STATE_OUT_OF_SYNC;
-                    return STEPPER_ERROR_OUT_OF_SYNC;
-                }
-            }
-            _set_clock_second_half(pPassive);
-        }
-        else
-        {
-            _set_clock_first_half(pPassive);
-
-            pPassive->passiveStepIndex++;
-            if(pPassive->passiveStepIndex == pPassive->passiveStepsCount)
-            {
-                pPassive->state = STEPPER_STATE_READY;
-            }
-
-            if(pPassive->isForward)
-            {
-                pPassive->offset++;
-                if(pPassive->offset >= pPassive->range)
-                {
-                    return STEPPER_ERROR_OUT_OF_RANGE;
-                }
-            }
-            else
-            {
-                if(pPassive->offset == 0)
-                {
-                    return STEPPER_ERROR_OUT_OF_RANGE;
-                }
-                pPassive->offset--;
-            }
-        }
-
-        return STEPPER_OK;
+    if(pPassive->state != STEPPER_STATE_RUNNING_PASSIVE) {
+        return STEPPER_ERROR_WRONG_STATE;
     }
 
-    return STEPPER_ERROR_WRONG_STATE;
+	if(pPassive->passiveStepIndex >= pPassive->passiveStepsCount)
+	{
+		return STEPPER_ERROR_INTERNAL_DATA_ERROR;
+	}
+
+	uint32_t expectedActiveStepIndex = pPassive->pPassiveStepArray[pPassive->passiveStepIndex];
+
+	if(activeStepIndex < expectedActiveStepIndex)
+	{
+		return STEPPER_OK;
+	}
+	if(activeStepIndex > expectedActiveStepIndex)
+	{
+		return STEPPER_ERROR_MISSED_ACTIVE_PULSE;
+	}
+
+
+	if(_is_stepper_out_of_range(pPassive))
+	{
+		on_stepper_out_of_scope_interrupt(passiveStepperId);
+		return STEPPER_ERROR_OUT_OF_RANGE;
+	}
+
+	if(activePulseState == FIRST_HALF)
+	{
+		if(pPassive->encoderId != ENCODER_ID_INVALID)
+		{
+			_update_encoder_offset(pPassive);
+			bool inSync = _is_stepper_in_sync(pPassive);
+			if(!inSync)
+			{
+				on_stepper_out_of_sync_interrupt(passiveStepperId);
+				pPassive->state = STEPPER_STATE_OUT_OF_SYNC;
+				return STEPPER_ERROR_OUT_OF_SYNC;
+			}
+		}
+		_set_clock_second_half(pPassive);
+	}
+	else
+	{
+		_set_clock_first_half(pPassive);
+
+		pPassive->passiveStepIndex++;
+		if(pPassive->passiveStepIndex == pPassive->passiveStepsCount)
+		{
+			pPassive->state = STEPPER_STATE_READY;
+		}
+
+		if(pPassive->isForward)
+		{
+			pPassive->offset++;
+			if(pPassive->offset >= pPassive->range)
+			{
+				return STEPPER_ERROR_OUT_OF_RANGE;
+			}
+		}
+		else
+		{
+			pPassive->offset--;
+			if(pPassive->offset < 0)
+			{
+	        	if(pPassive->crossBoundary.enabled)
+	        	{
+	        		if(pPassive->offset <= pPassive->crossBoundary.negativeRange)
+	        		{
+	            		return STEPPER_ERROR_OUT_OF_RANGE;
+	        		}
+	        	}
+	        	else
+	        	{
+	        		return STEPPER_ERROR_OUT_OF_RANGE;
+	        	}
+			}
+		}
+	}
+
+	return STEPPER_OK;
 }
 
 static StepperReturnCode _notify_passive_steppers(StepperData * const pActiveStepper)
@@ -342,7 +442,7 @@ static StepperReturnCode _notify_passive_steppers(StepperData * const pActiveSte
         StepperData * pPassive = _steppers + (int)passiveStepperId;
         if(pPassive->state == STEPPER_STATE_READY)
         {
-            // decouple passive stepper
+            // passive stepper moves to designated position, decouple it
             pActiveStepper->passiveStepperIds[i] = STEPPER_ID_INVALID; 
         }
     }
@@ -397,6 +497,7 @@ void stepper_init_data_structure()
         pStepper->isRampdownPulseWidthsPopulated = false;
         pStepper->isCruisePulseWidthPopulated = false;
         pStepper->isPassiveStepsPopulated = false;
+        pStepper->crossBoundary.enabled = false;
 
         // dynamic data
         pStepper->state = STEPPER_STATE_UNINITIALIZED;
@@ -463,7 +564,7 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_ERROR_INVALID_READY_STEPS;
     }
-    if(range == 0)
+    if(range == 0 || range >= INT32_MAX)
     {
         return STEPPER_ERROR_INVALID_RANGE;
     }
@@ -475,7 +576,7 @@ StepperReturnCode stepper_set_controls(
     {
         return STEPPER_ERROR_INVALID_CONTROL_PARAMETER;
     }
-    if(encoderOffsetErrorThreshold < 1)
+    if(encoderOffsetErrorThreshold < 1 || encoderOffsetErrorThreshold >= INT16_MAX)
     {
         return STEPPER_ERROR_INVALID_CONTROL_PARAMETER;
     }
@@ -614,16 +715,26 @@ StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward)
     {
         if(isForward)
         {
-            if(pStepper->offset + pStepper->stepsToRun > pStepper->range)
+            if((pStepper->offset + pStepper->stepsToRun) > pStepper->range)
             {
                 return STEPPER_ERROR_WILL_OUT_OF_RANGE;
             }
         }
         else
         {
-            if(pStepper->offset < pStepper->stepsToRun)
+            if(pStepper->crossBoundary.enabled)
             {
-                return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+                if((pStepper->offset - pStepper->stepsToRun) < pStepper->crossBoundary.negativeRange)
+                {
+                    return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+                }
+            }
+            else 
+            {
+                if(pStepper->offset < pStepper->stepsToRun)
+                {
+                    return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+                }
             }
         }
     }
@@ -1033,6 +1144,72 @@ StepperReturnCode stepper_set_passive_step_indexes(
     return STEPPER_OK;
 }
 
+StepperReturnCode stepper_set_cross_boundary(
+	const StepperId id,
+	const bool crossBoundaryEnabled,
+	const int32_t negativeRange,
+	const bool boundary0Enabled,
+	const int32_t boundary0Offset,
+	const int16_t boundary0Error,
+	const bool boundary1Enabled,
+	const int32_t boundary1Offset,
+	const int16_t boundary1Error,
+	const bool boundary2Enabled,
+	const int32_t boundary2Offset,
+	const int16_t boundary2Error,
+	const bool boundary3Enabled,
+	const int32_t boundary3Offset,
+	const int16_t boundary3Error)
+{
+    if(id >= STEPPER_ID_COUNT)
+    {
+        return STEPPER_ERROR_INVALID_ID;
+    }
+    if(negativeRange > 0 ||
+        boundary0Error < 0 ||
+        boundary1Error < 0 ||
+        boundary2Error < 0 ||
+        boundary3Error < 0)
+    {
+        return STEPPER_ERROR_INVALID_PARAMETER;    
+    }
+
+    StepperData * pStepper = _steppers + (int)id;
+    switch(pStepper->state)
+    {
+        case STEPPER_STATE_RETURN_TO_HOME_BOUNDARY:
+        case STEPPER_STATE_HOME_BOUNDARY_TO_READY:
+        case STEPPER_STATE_RUNNING_ACTIVE:
+        case STEPPER_STATE_RUNNING_PASSIVE:
+        case STEPPER_STATE_RUNNING_FORCED:
+            // cannot set pulses while stepper is moving
+            return STEPPER_ERROR_WRONG_STATE;
+        default:
+            break;
+    }
+
+    pStepper->crossBoundary.enabled = crossBoundaryEnabled;
+    pStepper->crossBoundary.negativeRange = negativeRange;
+
+    pStepper->crossBoundary.boundaries[0].enabled = boundary0Enabled;
+    pStepper->crossBoundary.boundaries[0].offset = boundary0Offset;
+    pStepper->crossBoundary.boundaries[0].error = boundary0Error;
+
+    pStepper->crossBoundary.boundaries[1].enabled = boundary1Enabled;
+    pStepper->crossBoundary.boundaries[1].offset = boundary1Offset;
+    pStepper->crossBoundary.boundaries[1].error = boundary1Error;
+
+    pStepper->crossBoundary.boundaries[2].enabled = boundary2Enabled;
+    pStepper->crossBoundary.boundaries[2].offset = boundary2Offset;
+    pStepper->crossBoundary.boundaries[2].error = boundary2Error;
+
+    pStepper->crossBoundary.boundaries[3].enabled = boundary3Enabled;
+    pStepper->crossBoundary.boundaries[3].offset = boundary3Offset;
+    pStepper->crossBoundary.boundaries[3].error = boundary3Error;
+
+    return STEPPER_OK;
+}
+
 StepperReturnCode stepper_start_home_positioning(const StepperId id)
 {
     if(id >= STEPPER_ID_COUNT)
@@ -1073,11 +1250,15 @@ StepperReturnCode stepper_start_home_positioning(const StepperId id)
     return STEPPER_OK;
 }
 
-StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
+StepperReturnCode stepper_run_active(const StepperId id, const int32_t steps)
 {
     if(id >= STEPPER_ID_COUNT)
     {
         return STEPPER_ERROR_INVALID_ID;
+    }
+    if(steps <= 0)
+    {
+        return STEPPER_ERROR_INVALID_PARAMETER;
     }
 
     StepperData * pStepper = _steppers + (int)id;
@@ -1101,9 +1282,19 @@ StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps)
     }
     else
     {
-        if(pStepper->offset < steps)
+        if(pStepper->crossBoundary.enabled)
         {
-            return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            if((pStepper->offset - steps) < pStepper->crossBoundary.negativeRange) 
+            {
+                return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            }
+        }
+        else
+        {
+            if(pStepper->offset < steps)
+            {
+                return STEPPER_ERROR_WILL_OUT_OF_RANGE;
+            }
         }
     }
 
@@ -1419,6 +1610,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         return rc;
     }
 
+    // check if stepper is out of range
     if(pStepper->isForward)
     {
         pStepper->offset++;
@@ -1430,12 +1622,23 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     }
     else
     {
-        if(pStepper->offset == 0)
-        {
-            *pNextPulseWidth = 0;
-            return STEPPER_ERROR_OUT_OF_RANGE;
-        }
         pStepper->offset--;
+        if(pStepper->offset < 0)
+        {
+        	if(pStepper->crossBoundary.enabled)
+        	{
+        		if(pStepper->offset <= pStepper->crossBoundary.negativeRange)
+        		{
+            		*pNextPulseWidth = 0;
+            		return STEPPER_ERROR_OUT_OF_RANGE;
+        		}
+        	}
+        	else
+        	{
+        		*pNextPulseWidth = 0;
+        		return STEPPER_ERROR_OUT_OF_RANGE;
+        	}
+        }
     }
 
     pStepper->currentStep += 1;
@@ -1535,6 +1738,8 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
         pStepper->currentStep = 0;
         pStepper->offset = 0;
         pStepper->state = STEPPER_STATE_READY;
+
+        _boundary_detector_flips(pStepper); // init static data in function.
     }
 
     return STEPPER_OK;
@@ -1559,12 +1764,22 @@ StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * c
         {
             return STEPPER_ERROR_OUT_OF_STEPS;
         }
-        if(_is_stepper_at_home_boundary(pStepper) ||
-            _is_stepper_at_end_boundary(pStepper))
+
+        if(_is_stepper_out_of_range(pStepper))
         {
-            on_stepper_out_of_scope_interrupt(id);
-            *pNextPulseWidth = 0;
-            return STEPPER_ERROR_OUT_OF_RANGE;
+        	if(pStepper->crossBoundary.enabled)
+        	{
+        		pStepper->state = STEPPER_STATE_OUT_OF_SYNC;
+        		on_stepper_out_of_sync_interrupt(id);
+        	}
+        	else
+        	{
+        		pStepper->state = STEPPER_STATE_OUT_OF_BOUNDARY;
+        		on_stepper_out_of_scope_interrupt(id);
+        	}
+        	*pNextPulseWidth = 0;
+
+        	return STEPPER_ERROR_OUT_OF_RANGE;
         }
 
         StepperReturnCode returnCode = _on_stepper_pulse_end_active(pStepper, pNextPulseWidth);

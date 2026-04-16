@@ -51,6 +51,7 @@
  *      - set_active_stepper_rampup_pulse_widths
  *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampdown_pulse_widths
+ *      - set_stepper_cross_boundary
  *      - set_stepper_controls()
  *      - start_stepper_home_positioning
  *      - set_stepper_forward
@@ -63,6 +64,7 @@
  *      - set_active_stepper_rampup_pulse_widths
  *      - set_active_stepper_cruise_pulse_width
  *      - set_active_stepper_rampdown_pulse_widths
+ *      - set_stepper_cross_boundary
  *      - set_stepper_controls()
  *      - start_stepper_home_positioning
  *      - set_stepper_forward
@@ -137,7 +139,8 @@ typedef enum
     STEPPER_ERROR_OUT_OF_RANGE,
     STEPPER_ERROR_MISSED_ACTIVE_PULSE,
     STEPPER_ERROR_GPIO_RW_FAILURE,
-    STEPPER_ERROR_NOT_ENABLED
+    STEPPER_ERROR_NOT_ENABLED,
+    STEPPER_ERROR_INVALID_PARAMETER
 } StepperReturnCode;
 
 typedef enum 
@@ -188,6 +191,23 @@ StepperReturnCode stepper_set_passive_step_indexes(
     const uint8_t batchIndex, 
     const uint8_t totalBatches);
 
+StepperReturnCode stepper_set_cross_boundary(
+		const StepperId id,
+		const bool crossBoundaryEnabled,
+		const int32_t negativeRange,
+		const bool boundary0Enabled,
+		const int32_t boundary0Offset,
+		const int16_t boundary0Error,
+		const bool boundary1Enabled,
+		const int32_t boundary1Offset,
+		const int16_t boundary1Error,
+		const bool boundary2Enabled,
+		const int32_t boundary2Offset,
+		const int16_t boundary2Error,
+		const bool boundary3Enabled,
+		const int32_t boundary3Offset,
+		const int16_t boundary3Error);
+
 StepperReturnCode stepper_set_controls(
     const StepperId id,
     const bool isRisingEdgeDriven,
@@ -216,7 +236,7 @@ StepperReturnCode stepper_set_enable(const StepperId id, const bool isEnable);
 
 StepperReturnCode stepper_start_home_positioning(const StepperId id);
 
-StepperReturnCode stepper_run_active(const StepperId id, const uint32_t steps);
+StepperReturnCode stepper_run_active(const StepperId id, const int32_t steps);
 
 StepperReturnCode stepper_couple_passive(const StepperId activeStepperId, const StepperId passiveStepperId);
 

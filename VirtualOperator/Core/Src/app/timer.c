@@ -481,8 +481,8 @@ static void _on_flex_timer(const TimerId timerId)
 		}
 		else
 		{
+			print_log("Error: on_interupt_stepper_pulse_end() in flex timer %d returned %d for stepper %d\r\n", timerId, rc, pTimer->stepperId);
 			_stop_flex_timer(timerId);
-			print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pTimer->stepperId);
 		}
 
 		uint16_t count = __HAL_TIM_GET_COUNTER(pTimer->pTimerHandle);
@@ -609,7 +609,7 @@ void HAL_HRTIM_RepetitionEventCallback(HRTIM_HandleTypeDef *hhrtim,
 				}
 				else
 				{
-					print_log("Error: on_interupt_stepper_pulse_end() returned %d for stepper %d\r\n", rc, pStepper->stepperId);
+					print_log("Error: on_interupt_stepper_pulse_end() in HRTIM returned %d for stepper %d\r\n", rc, pStepper->stepperId);
 					pStepper->stepperId = STEPPER_ID_INVALID;
 				}
 			}
