@@ -1627,7 +1627,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         {
         	if(pStepper->crossBoundary.enabled)
         	{
-        		if(pStepper->offset <= pStepper->crossBoundary.negativeRange)
+        		if(pStepper->offset < pStepper->crossBoundary.negativeRange)
         		{
             		*pNextPulseWidth = 0;
             		return STEPPER_ERROR_OUT_OF_RANGE;
