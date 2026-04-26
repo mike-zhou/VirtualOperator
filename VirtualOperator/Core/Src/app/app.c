@@ -635,6 +635,19 @@ static void _on_set_stepper_active_rampup_pulse_width(const uint8_t * p_cmd, con
 	const uint8_t * const pPulseWidth = p_cmd + 4;
 	const uint8_t widthLength = length - 4;
 
+	uint16_t firstWidth;
+	uint16_t lastWidth;
+
+	firstWidth = pPulseWidth[1];
+	firstWidth <<= 8;
+	firstWidth += pPulseWidth[0];
+
+	lastWidth = pPulseWidth[widthLength - 1];
+	lastWidth <<= 8;
+	lastWidth += pPulseWidth[widthLength - 2];
+
+	print_log("Stepper %d rampup, %d/%d, widthCount: %d, firstWidth: %d, lastWidth: %d\r\n", stepperId, batchIndex + 1, totalBatches, widthLength >> 1, firstWidth, lastWidth);
+
 	StepperReturnCode result = stepper_set_active_rampup_pulse_widths(stepperId, pPulseWidth, widthLength, batchIndex, totalBatches);
 	if(result != STEPPER_OK)
 	{
@@ -672,6 +685,8 @@ static void _on_set_stepper_active_cruise_pulse_width(const uint8_t * p_cmd, con
 	uint16_t width = p_cmd[3];
 	width <<= 8;
 	width += p_cmd[2];
+
+	print_log("Stepper %d cruise, width: %d\r\n", stepperId, width);
 
 	StepperReturnCode result = stepper_set_active_cruise_pulse_width(stepperId, width);
 	if(result != STEPPER_OK)
@@ -729,6 +744,19 @@ static void _on_set_stepper_active_rampdown_pulse_width(const uint8_t * p_cmd, c
 
 	const uint8_t * const pPulseWidth = p_cmd + 4;
 	const uint8_t widthLength = length - 4;
+
+	uint16_t firstWidth;
+	uint16_t lastWidth;
+
+	firstWidth = pPulseWidth[1];
+	firstWidth <<= 8;
+	firstWidth += pPulseWidth[0];
+
+	lastWidth = pPulseWidth[widthLength - 1];
+	lastWidth <<= 8;
+	lastWidth += pPulseWidth[widthLength - 2];
+
+	print_log("Stepper %d rampdown, %d/%d, widthCount: %d, firstWidth: %d, lastWidth: %d\r\n", stepperId, batchIndex + 1, totalBatches, widthLength >> 1, firstWidth, lastWidth);
 
 	StepperReturnCode result = stepper_set_active_rampdown_pulse_widths(stepperId, pPulseWidth, widthLength, batchIndex, totalBatches);
 	if(result != STEPPER_OK)
@@ -2022,9 +2050,19 @@ void on_host_command(const uint8_t * p_command, const uint16_t length)
 		return;
 	}
 
-	print_log("host cmd: %d, %d bytes\r\n", p_command[0], length);
 
 	uint8_t host_command = p_command[0];
+
+	switch (host_command)
+	{
+	case HOST_COMMAND_GET_STATUS:
+		break;
+	
+	default:
+		print_log("host cmd: %d, %d bytes\r\n", host_command, length);
+		break;
+	}
+
 	switch(host_command)
 	{
 	case HOST_COMMAND_VERSION:

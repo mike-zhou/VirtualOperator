@@ -195,7 +195,8 @@ void print_char(char c)
 
 void print_string(char * pStr)
 {
-	for(int i=0; i<strlen(pStr); i++)
+	int length = strlen(pStr);
+	for(int i=0; i<length; i++)
 	{
 		if(cbuf_put(&_cbuffer_sending, pStr[i]) == false)
 			break;

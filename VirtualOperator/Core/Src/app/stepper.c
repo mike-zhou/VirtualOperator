@@ -35,11 +35,19 @@ typedef struct _CrossBoundary
 	} boundaries[CROSS_BOUDNARY_MAX_ITEMS];
 } CrossBoundary;
 
+typedef enum _activeSubState
+{
+    ACCELERATING,
+    CRUISING,
+    DEACCELERATING
+} StepperActiveSubState;
+
 typedef struct _Stepper
 {
     /**
      * static data
      */
+    StepperId stepperId;
     // stepper controls
     bool isRisingEdgeDriven;
     bool isForwardHigh;
@@ -103,6 +111,7 @@ typedef struct _Stepper
      */
 
     StepperState state;
+    StepperActiveSubState activeSubState;
 
     bool isEnabled;
     bool isForward;
@@ -492,6 +501,7 @@ void stepper_init_data_structure()
         StepperData * pStepper = _steppers + stepperIndex;
 
         // static data
+        pStepper->stepperId = (StepperId)stepperIndex;
         pStepper->isStepperControlInitialized = false;
         pStepper->isRampupPuleseWidthsPopulated = false;
         pStepper->isRampdownPulseWidthsPopulated = false;
@@ -1303,6 +1313,7 @@ StepperReturnCode stepper_run_active(const StepperId id, const int32_t steps)
     pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
 
     pStepper->state = STEPPER_STATE_RUNNING_ACTIVE;
+    pStepper->activeSubState = ACCELERATING;
 
     return STEPPER_OK;
 }
@@ -1601,7 +1612,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         return STEPPER_OK;
     }
 
-    // second clock pulse has finished
+    // second half of clock pulse has finished
     const StepperReturnCode rc = _notify_passive_steppers(pStepper);
     _set_clock_first_half(pStepper);
     if(rc != STEPPER_OK)
@@ -1641,9 +1652,28 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         }
     }
 
+    if(pStepper->currentStep == 0)
+    {
+        print_string("Stepper ");
+        print_uint8_hex(pStepper->stepperId);
+        print_string(" rampUp, stepIndex: ");
+        print_uint32_hex(pStepper->currentStep);
+        print_string(", width: ");
+        print_uint16_hex(pStepper->currentPulseWidth);
+        print_string("\r\n");
+    }
+
     pStepper->currentStep += 1;
     if(pStepper->currentStep == pStepper->stepsToRun)
     {
+        print_string("Stepper ");
+        print_uint8_hex(pStepper->stepperId);
+        print_string(" stop, stepIndex: ");
+        print_uint32_hex(pStepper->currentStep);
+        print_string(", width: ");
+        print_uint16_hex(pStepper->currentPulseWidth);
+        print_string("\r\n");
+
         // has run the designated steps
         pStepper->currentStep = 0;
         pStepper->stepsToRun = 0;
@@ -1662,6 +1692,22 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             // accelerating
             width = pStepper->pRampupPulseWidths[pStepper->currentStep];
         }
+        else
+        {
+            // cruising
+            if(pStepper->activeSubState != CRUISING)
+            {
+                print_string("Stepper ");
+                print_uint8_hex(pStepper->stepperId);
+                print_string(" cruise, stepIndex: ");
+                print_uint32_hex(pStepper->currentStep);
+                print_string(", width: ");
+                print_uint16_hex(width);
+                print_string("\r\n");
+
+                pStepper->activeSubState = CRUISING;
+            }
+        }
     }
     else
     {
@@ -1671,6 +1717,19 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             // deaccelerating
             uint32_t index = pStepper->rampdownPulseCount - remainingSteps;
             width = pStepper->pRampdownPulseWidths[index];
+
+            if(pStepper->activeSubState != DEACCELERATING)
+            {
+                print_string("Stepper ");
+                print_uint8_hex(pStepper->stepperId);
+                print_string(" rampDown, stepIndex: ");
+                print_uint32_hex(pStepper->currentStep);
+                print_string(", width: ");
+                print_uint16_hex(width);
+                print_string("\r\n");
+
+                pStepper->activeSubState = DEACCELERATING;
+            }
         }
     }
     *pNextPulseWidth = width;
