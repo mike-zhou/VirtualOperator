@@ -1654,25 +1654,25 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
 
     if(pStepper->currentStep == 0)
     {
-        print_string("Stepper ");
-        print_uint8_hex(pStepper->stepperId);
-        print_string(" rampUp, stepIndex: ");
-        print_uint32_hex(pStepper->currentStep);
-        print_string(", width: ");
-        print_uint16_hex(pStepper->currentPulseWidth);
-        print_string("\r\n");
+        // print_string("Stepper ");
+        // print_uint8_hex(pStepper->stepperId);
+        // print_string(" rampUp, stepIndex: ");
+        // print_uint32_hex(pStepper->currentStep);
+        // print_string(", width: ");
+        // print_uint16_hex(pStepper->currentPulseWidth);
+        // print_string("\r\n");
     }
 
     pStepper->currentStep += 1;
     if(pStepper->currentStep == pStepper->stepsToRun)
     {
-        print_string("Stepper ");
-        print_uint8_hex(pStepper->stepperId);
-        print_string(" stop, stepIndex: ");
-        print_uint32_hex(pStepper->currentStep);
-        print_string(", width: ");
-        print_uint16_hex(pStepper->currentPulseWidth);
-        print_string("\r\n");
+        // print_string("Stepper ");
+        // print_uint8_hex(pStepper->stepperId);
+        // print_string(" stop, stepIndex: ");
+        // print_uint32_hex(pStepper->currentStep);
+        // print_string(", width: ");
+        // print_uint16_hex(pStepper->currentPulseWidth);
+        // print_string("\r\n");
 
         // has run the designated steps
         pStepper->currentStep = 0;
@@ -1697,13 +1697,13 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             // cruising
             if(pStepper->activeSubState != CRUISING)
             {
-                print_string("Stepper ");
-                print_uint8_hex(pStepper->stepperId);
-                print_string(" cruise, stepIndex: ");
-                print_uint32_hex(pStepper->currentStep);
-                print_string(", width: ");
-                print_uint16_hex(width);
-                print_string("\r\n");
+                // print_string("Stepper ");
+                // print_uint8_hex(pStepper->stepperId);
+                // print_string(" cruise, stepIndex: ");
+                // print_uint32_hex(pStepper->currentStep);
+                // print_string(", width: ");
+                // print_uint16_hex(width);
+                // print_string("\r\n");
 
                 pStepper->activeSubState = CRUISING;
             }
@@ -1720,13 +1720,13 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
 
             if(pStepper->activeSubState != DEACCELERATING)
             {
-                print_string("Stepper ");
-                print_uint8_hex(pStepper->stepperId);
-                print_string(" rampDown, stepIndex: ");
-                print_uint32_hex(pStepper->currentStep);
-                print_string(", width: ");
-                print_uint16_hex(width);
-                print_string("\r\n");
+                // print_string("Stepper ");
+                // print_uint8_hex(pStepper->stepperId);
+                // print_string(" rampDown, stepIndex: ");
+                // print_uint32_hex(pStepper->currentStep);
+                // print_string(", width: ");
+                // print_uint16_hex(width);
+                // print_string("\r\n");
 
                 pStepper->activeSubState = DEACCELERATING;
             }
