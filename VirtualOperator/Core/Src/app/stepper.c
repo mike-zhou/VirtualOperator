@@ -13,6 +13,7 @@
 
 #define MAX_UINT16_ARRAY_LENGTH 4096
 #define MAX_RAMP_CLOCKS (MAX_UINT16_ARRAY_LENGTH >> 1)
+#define MAX_AMOUNT_OF_PULSE_IN_BATCH 100 // There is a correspondance in SetActivePeriods()
 #define CROSS_BOUDNARY_MAX_ITEMS 4
 
 
@@ -878,7 +879,7 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
         _reset_active_stepper_pulses(id);
     }
 
-    if(pStepper->rampupPulseCount != count * batchIndex)
+    if(pStepper->rampupPulseCount != MAX_AMOUNT_OF_PULSE_IN_BATCH * batchIndex)
     {
         return STEPPER_ERROR_WRONG_BATCH_INDEX;
     }
@@ -1003,7 +1004,7 @@ StepperReturnCode stepper_set_active_rampdown_pulse_widths(
         return STEPPER_ERROR_WRONG_PULSE_ORDER;
     }
 
-    if(pStepper->rampdownPulseCount != count * batchIndex)
+    if(pStepper->rampdownPulseCount != MAX_AMOUNT_OF_PULSE_IN_BATCH * batchIndex)
     {
         return STEPPER_ERROR_WRONG_BATCH_INDEX;
     }
@@ -1625,7 +1626,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     if(pStepper->isForward)
     {
         pStepper->offset++;
-        if(pStepper->offset >= pStepper->range)
+        if(pStepper->offset > pStepper->range)
         {
             *pNextPulseWidth = 0;
             return STEPPER_ERROR_OUT_OF_RANGE;
