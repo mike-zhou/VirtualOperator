@@ -17,6 +17,12 @@ typedef enum
     ENCODER_ID_INVALID = 0xFF
 } EncoderId;
 
+void encoder_init();
+
+// this function needs to be called periodically to update encoders
+void poll_encoders();
+
 uint16_t encoder_get_count(const EncoderId encoderId);
+int32_t encoder_get_value(const EncoderId encoderId);
 
 #endif

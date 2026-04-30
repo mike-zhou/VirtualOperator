@@ -136,6 +136,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  encoder_init();
   prepare_uart1();
   init_usb_fs();
   /* USER CODE END Init */

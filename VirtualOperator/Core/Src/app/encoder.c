@@ -1,3 +1,4 @@
+#include <stdalign.h>
 #include "encoder.h"
 #include "stm32h7xx_hal.h"
 
@@ -9,6 +10,44 @@ extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern TIM_HandleTypeDef htim5;
 extern TIM_HandleTypeDef htim8;
+
+typedef struct _Encoder
+{
+    uint16_t prevCounter;
+    alignas(4) int32_t value;
+} Encoder;
+
+static Encoder encoders[ENCODER_ID_COUNT];
+
+void encoder_init()
+{
+    for(int i = 0; i < ENCODER_ID_COUNT; i++)
+    {
+        encoders[i].prevCounter = encoder_get_count((EncoderId)i);
+        encoders[i].value = 0;
+    }
+}
+
+void poll_encoders()
+{
+    for(int i=0; i<ENCODER_ID_COUNT; i++)
+    {
+        Encoder* pEncoder = encoders + i;
+        uint16_t curCounter = encoder_get_count((EncoderId)i);
+        uint16_t diff = curCounter - pEncoder->prevCounter;
+
+        if(diff < 0x7FFF)
+        {
+            pEncoder->value += diff;
+        }
+        else
+        {
+            pEncoder->value -= (uint16_t)(pEncoder->prevCounter - curCounter);
+        }
+
+        pEncoder->prevCounter = curCounter;
+    }
+}
 
 uint16_t encoder_get_count(const EncoderId encoderId)
 {
@@ -55,4 +94,12 @@ uint16_t encoder_get_count(const EncoderId encoderId)
     return value;
 }
 
+int32_t encoder_get_value(const EncoderId encoderId)
+{
+    if(encoderId > ENCODER_ID_COUNT)
+    {
+        return 0;
+    }
 
+    return encoders[(int)encoderId].value;
+}

@@ -69,6 +69,7 @@ typedef struct _Stepper
     EncoderId encoderId;
     uint16_t encoderCountsPerRotation;
     uint16_t encoderOffsetErrorThreshold;
+    float encoderStepperRatio;
     bool isStepperControlInitialized;
 
     // uint16_t data array for active or passive pulses
@@ -118,8 +119,8 @@ typedef struct _Stepper
     bool isForward;
     int32_t offset;
 
-    int32_t encodeOffset;
-    uint16_t encoderCount;
+    int32_t encoderHomePosition;
+    int32_t encoderOffset;
     uint8_t maxEncoderOffsetError;
 
     int32_t stepsToRun;
@@ -249,61 +250,12 @@ static bool _is_stepper_out_of_range(StepperData * const pStepper)
 	return false;
 }
 
-static void _update_encoder_offset(StepperData * const pStepper)
-{
-    if(pStepper->encoderId == ENCODER_ID_INVALID)
-    {
-        return;
-    }
-
-    const uint16_t curr = encoder_get_count(pStepper->encoderId);
-    const uint16_t prev = pStepper->encoderCount;
-
-    // this function is called in high frequency, so the difference between
-    // curr and prev should not be too large.
-    // forword:
-    //   case 0:   0x0 -------------------prev-----curr------------------------- 0xFFFF
-    //   case 1:   0x0 --curr-------------------------------------------prev---- 0xFFFF
-    // backword:
-    //   case 2:   0x0 ----------------------------curr-----------prev---------- 0xFFFF
-    //   case 3:   0x0 ----prev-----------------------------------------curr---- 0xFFFF
-
-    if(curr > prev)
-    {
-        uint16_t delta = curr - prev;
-        if(delta < 0x7FFF)
-        {
-            pStepper->encodeOffset += delta; // case 0
-        }
-        else
-        {
-            pStepper->encodeOffset -= 0x10000 - delta; // case 3
-        }
-    }
-    else
-    {
-        uint16_t delta = prev - curr;
-        if(delta < 0x7FFF)
-        {
-            pStepper->encodeOffset -= delta; // case 2
-        }
-        else
-        {
-            pStepper->encodeOffset += 0x10000 - delta; // case 1
-        }
-    }
-
-    pStepper->encoderCount = curr;
-}
-
 static bool _is_stepper_in_sync(StepperData * const pStepper)
 {
-    // expectedEncoderPosition = offset * (encoderCountsPerRotation / stepsPerRotation)
-    int64_t expectedEncoderPosition = pStepper->offset;
-    expectedEncoderPosition *= pStepper->encoderCountsPerRotation;
-    expectedEncoderPosition /= pStepper->stepsPerRotation;
+    int32_t encoderOffset = encoder_get_value(pStepper->encoderId) - pStepper->encoderHomePosition;
+    int32_t expectedEncoderPosition = pStepper->offset * pStepper->encoderStepperRatio;
 
-    int32_t error = abs(pStepper->encodeOffset - expectedEncoderPosition);
+    int32_t error = abs(abs(encoderOffset) - abs(expectedEncoderPosition));
 
     if(error > pStepper->maxEncoderOffsetError)
     {
@@ -315,13 +267,15 @@ static bool _is_stepper_in_sync(StepperData * const pStepper)
     	}
     }
 
+    pStepper->encoderOffset = encoderOffset;
+
     if(error >= pStepper->encoderOffsetErrorThreshold)
     {
-        return true;
+        return false;
     }
     else
     {
-        return false;
+        return true;
     }
 }
 
@@ -374,11 +328,11 @@ static StepperReturnCode _on_active_stepper_pulse_end(
 	{
 		if(pPassive->encoderId != ENCODER_ID_INVALID)
 		{
-			_update_encoder_offset(pPassive);
 			bool inSync = _is_stepper_in_sync(pPassive);
 			if(!inSync)
 			{
 				on_stepper_out_of_sync_interrupt(passiveStepperId);
+                print_log("Error: passive stepper %d out of sync, stepper offset: %d, encoder offset: %d\r\n", (int)passiveStepperId, pPassive->offset, pPassive->encoderOffset);
 				pPassive->state = STEPPER_STATE_OUT_OF_SYNC;
 				return STEPPER_ERROR_OUT_OF_SYNC;
 			}
@@ -514,8 +468,6 @@ void stepper_init_data_structure()
         pStepper->state = STEPPER_STATE_UNINITIALIZED;
         pStepper->isEnabled = false;
         pStepper->offset = 0;
-        pStepper->encodeOffset = 0;
-        pStepper->encoderCount = 0;
         pStepper->maxEncoderOffsetError = 0;
         pStepper->stepsToRun = 0;
         pStepper->currentStep = 0;
@@ -618,6 +570,7 @@ StepperReturnCode stepper_set_controls(
     pStepper->encoderId = encoderId;
     pStepper->encoderCountsPerRotation = encoderCountsPerRotation;
     pStepper->encoderOffsetErrorThreshold = encoderOffsetErrorThreshold;
+    pStepper->encoderStepperRatio = (float)encoderCountsPerRotation / (float)stepsPerRotation;
     pStepper->isStepperControlInitialized = true;
 
     if(!_is_static_data_initialized(id))
@@ -1480,7 +1433,7 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     tmpInt >>= 8;
     p_buffer[6] = tmpInt;
 
-    tmpInt = pStepper->encodeOffset;
+    tmpInt = pStepper->encoderOffset;
     p_buffer[7] = tmpInt;
     tmpInt >>= 8;
     p_buffer[8] = tmpInt;
@@ -1514,8 +1467,18 @@ StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
         return STEPPER_ERROR_INVALID_ENCODER_ID;
     }
 
-    _update_encoder_offset(pStepper);
-    *pInSync = _is_stepper_in_sync(pStepper);
+    int32_t encoderOffset = encoder_get_value(pStepper->encoderId) - pStepper->encoderHomePosition;
+    int32_t expectedEncoderPosition = pStepper->offset * pStepper->encoderStepperRatio;
+    int32_t error = abs(abs(encoderOffset) - abs(expectedEncoderPosition));
+
+    if(error >= pStepper->encoderOffsetErrorThreshold)
+    {
+        *pInSync = false;
+    }
+    else
+    {
+        *pInSync = true;
+    }
 
     return STEPPER_OK;
 }
@@ -1587,12 +1550,11 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         // first clock pulse has finished, check if stepper has arrived at the expected position
         if(pStepper->encoderId != ENCODER_ID_INVALID)
         {
-            _update_encoder_offset(pStepper);
             bool inSync = _is_stepper_in_sync(pStepper);
             if(!inSync)
             {
-                uint32_t stepperId = (pStepper - _steppers) / sizeof(StepperData);
-                on_stepper_out_of_sync_interrupt((StepperId)stepperId);
+                on_stepper_out_of_sync_interrupt(pStepper->stepperId);
+                print_log("Error: stepper %d out of sync, stepper offset: %d, encoder offset: %d\r\n", (int)pStepper->stepperId, pStepper->offset, pStepper->encoderOffset);
                 *pNextPulseWidth = 0;
                 pStepper->state = STEPPER_STATE_OUT_OF_SYNC;
                 return STEPPER_ERROR_OUT_OF_SYNC;
@@ -1798,6 +1760,11 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
         pStepper->currentStep = 0;
         pStepper->offset = 0;
         pStepper->state = STEPPER_STATE_READY;
+        if(pStepper->encoderId < ENCODER_ID_COUNT)
+        {
+            pStepper->encoderHomePosition = encoder_get_value(pStepper->encoderId);
+            pStepper->encoderOffset = 0;
+        }
 
         _boundary_detector_flips(pStepper); // init static data in function.
     }
@@ -1991,8 +1958,8 @@ StepperReturnCode stepper_test_state_ready(const StepperId id)
     pStepper->offset = 0;
     if(pStepper->encoderId != ENCODER_ID_INVALID)
     {
-        pStepper->encodeOffset = 0;
-        pStepper->encoderCount = encoder_get_count(pStepper->encoderId);
+        pStepper->encoderOffset = 0;
+        pStepper->encoderHomePosition = encoder_get_value(pStepper->encoderId);
         pStepper->maxEncoderOffsetError = 0;
     }
 
