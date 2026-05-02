@@ -262,11 +262,6 @@ StepperReturnCode stepper_get_state(const StepperId id, StepperState * const pSt
 StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffer, uint8_t * p_status_length);
 
 /**
- * check if stepper gets out of sync when it is NOT moving.
- */
-StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync);
-
-/**
  *  interface with timer
 */
 StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth);

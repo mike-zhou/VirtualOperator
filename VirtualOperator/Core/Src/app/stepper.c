@@ -252,7 +252,9 @@ static bool _is_stepper_out_of_range(StepperData * const pStepper)
 
 static bool _is_stepper_in_sync(StepperData * const pStepper)
 {
-    int32_t encoderOffset = encoder_get_value(pStepper->encoderId) - pStepper->encoderHomePosition;
+    encoder_poll(pStepper->encoderId);
+
+    int32_t encoderOffset = encoder_get_offset(pStepper->encoderId) - pStepper->encoderHomePosition;
     int32_t expectedEncoderPosition = pStepper->offset * pStepper->encoderStepperRatio;
 
     int32_t error = abs(abs(encoderOffset) - abs(expectedEncoderPosition));
@@ -1449,40 +1451,6 @@ StepperReturnCode stepper_get_status(const StepperId id, uint8_t * const p_buffe
     return STEPPER_OK;
 }
 
-StepperReturnCode stepper_check_sync(const StepperId id, bool * const pInSync)
-{
-    if(id >= STEPPER_ID_COUNT)
-    {
-        return STEPPER_ERROR_INVALID_ID;
-    }
-
-    StepperData * pStepper = _steppers + (int)id;
-
-    if(pStepper->state != STEPPER_STATE_READY)
-    {
-        return STEPPER_ERROR_WRONG_STATE;
-    }
-    if(pStepper->encoderId == ENCODER_ID_INVALID)
-    {
-        return STEPPER_ERROR_INVALID_ENCODER_ID;
-    }
-
-    int32_t encoderOffset = encoder_get_value(pStepper->encoderId) - pStepper->encoderHomePosition;
-    int32_t expectedEncoderPosition = pStepper->offset * pStepper->encoderStepperRatio;
-    int32_t error = abs(abs(encoderOffset) - abs(expectedEncoderPosition));
-
-    if(error >= pStepper->encoderOffsetErrorThreshold)
-    {
-        *pInSync = false;
-    }
-    else
-    {
-        *pInSync = true;
-    }
-
-    return STEPPER_OK;
-}
-
 StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t * const pPulseWidth)
 {
     if(id >= STEPPER_ID_COUNT)
@@ -1762,7 +1730,8 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
         pStepper->state = STEPPER_STATE_READY;
         if(pStepper->encoderId < ENCODER_ID_COUNT)
         {
-            pStepper->encoderHomePosition = encoder_get_value(pStepper->encoderId);
+            encoder_reset(pStepper->encoderId);
+            pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
             pStepper->encoderOffset = 0;
         }
 
@@ -1959,7 +1928,7 @@ StepperReturnCode stepper_test_state_ready(const StepperId id)
     if(pStepper->encoderId != ENCODER_ID_INVALID)
     {
         pStepper->encoderOffset = 0;
-        pStepper->encoderHomePosition = encoder_get_value(pStepper->encoderId);
+        pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
         pStepper->maxEncoderOffsetError = 0;
     }
 

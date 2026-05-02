@@ -2,6 +2,7 @@
 #define INC_ENCODER_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum 
 {
@@ -17,12 +18,16 @@ typedef enum
     ENCODER_ID_INVALID = 0xFF
 } EncoderId;
 
-void encoder_init();
+// initialize internal data for encoders.
+void encoders_init();
 
-// this function needs to be called periodically to update encoders
-void poll_encoders();
+// this function is called to calculate how far the encoder has moved.
+bool encoder_poll(const EncoderId encoderId);
+
+// reset the zero point of the encoder
+bool encoder_reset(const EncoderId encoderId);
 
 uint16_t encoder_get_count(const EncoderId encoderId);
-int32_t encoder_get_value(const EncoderId encoderId);
+int32_t encoder_get_offset(const EncoderId encoderId);
 
 #endif

@@ -14,39 +14,59 @@ extern TIM_HandleTypeDef htim8;
 typedef struct _Encoder
 {
     uint16_t prevCounter;
-    alignas(4) int32_t value;
+    alignas(4) int32_t offset;
 } Encoder;
 
 static Encoder encoders[ENCODER_ID_COUNT];
 
-void encoder_init()
+void encoders_init()
 {
     for(int i = 0; i < ENCODER_ID_COUNT; i++)
     {
         encoders[i].prevCounter = encoder_get_count((EncoderId)i);
-        encoders[i].value = 0;
+        encoders[i].offset = 0;
     }
 }
 
-void poll_encoders()
+bool encoder_poll(const EncoderId encoderId)
 {
-    for(int i=0; i<ENCODER_ID_COUNT; i++)
+    if(encoderId >= ENCODER_ID_COUNT)
     {
-        Encoder* pEncoder = encoders + i;
-        uint16_t curCounter = encoder_get_count((EncoderId)i);
-        uint16_t diff = curCounter - pEncoder->prevCounter;
-
-        if(diff < 0x7FFF)
-        {
-            pEncoder->value += diff;
-        }
-        else
-        {
-            pEncoder->value -= (uint16_t)(pEncoder->prevCounter - curCounter);
-        }
-
-        pEncoder->prevCounter = curCounter;
+        return false;
     }
+
+    Encoder* pEncoder = encoders + (int)encoderId;
+    uint16_t curCounter = encoder_get_count(encoderId);
+    uint16_t diff = curCounter - pEncoder->prevCounter;
+
+    if(diff < 0x7FFF)
+    {
+        pEncoder->offset += diff;
+    }
+    else
+    {
+        pEncoder->offset -= (uint16_t)(pEncoder->prevCounter - curCounter);
+    }
+
+    pEncoder->prevCounter = curCounter;
+
+    return true;
+}
+
+bool encoder_reset(const EncoderId encoderId)
+{
+    if(encoderId >= ENCODER_ID_COUNT)
+    {
+        return false;
+    }
+
+    Encoder* pEncoder = encoders + (int)encoderId;
+    uint16_t curCounter = encoder_get_count(encoderId);
+
+    pEncoder->prevCounter = curCounter;
+    pEncoder->offset = 0;
+
+    return true;
 }
 
 uint16_t encoder_get_count(const EncoderId encoderId)
@@ -94,12 +114,12 @@ uint16_t encoder_get_count(const EncoderId encoderId)
     return value;
 }
 
-int32_t encoder_get_value(const EncoderId encoderId)
+int32_t encoder_get_offset(const EncoderId encoderId)
 {
-    if(encoderId > ENCODER_ID_COUNT)
+    if(encoderId >= ENCODER_ID_COUNT)
     {
         return 0;
     }
 
-    return encoders[(int)encoderId].value;
+    return encoders[(int)encoderId].offset;
 }
