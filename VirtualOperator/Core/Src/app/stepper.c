@@ -857,6 +857,11 @@ StepperReturnCode stepper_set_active_rampup_pulse_widths(
     }
     pStepper->rampupPulseCount +=  count;
 
+    // all pulses are to be set up.
+    pStepper->isRampupPuleseWidthsPopulated = false;
+    pStepper->isCruisePulseWidthPopulated = false;
+    pStepper->isRampdownPulseWidthsPopulated = false;
+
     if(batchIndex == (totalBatches - 1))
     {
         pStepper->isRampupPuleseWidthsPopulated = true;
