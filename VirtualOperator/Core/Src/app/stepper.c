@@ -231,6 +231,13 @@ static bool _is_stepper_out_of_range(StepperData * const pStepper)
     			   pStepper->offset <= (pBoundary->offset + pBoundary->error)) {
     				// in one expected scope
     				boundaryFailure = false;
+                    
+                    print_string("Error: stepper ");
+                    print_char(pStepper->stepperId);
+                    print_string(" failed at crossboundary ");
+                    print_char((uint8_t)i);
+                    print_string("\n");
+
     				break;
     			}
     		}
@@ -250,7 +257,7 @@ static bool _is_stepper_out_of_range(StepperData * const pStepper)
 	return false;
 }
 
-static bool _is_stepper_in_sync(StepperData * const pStepper)
+static bool _is_stepper_in_sync_with_encoder(StepperData * const pStepper)
 {
     encoder_poll(pStepper->encoderId);
 
@@ -330,7 +337,7 @@ static StepperReturnCode _on_active_stepper_pulse_end(
 	{
 		if(pPassive->encoderId != ENCODER_ID_INVALID)
 		{
-			bool inSync = _is_stepper_in_sync(pPassive);
+			bool inSync = _is_stepper_in_sync_with_encoder(pPassive);
 			if(!inSync)
 			{
 				on_stepper_out_of_sync_interrupt(passiveStepperId);
@@ -1523,7 +1530,7 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         // first clock pulse has finished, check if stepper has arrived at the expected position
         if(pStepper->encoderId != ENCODER_ID_INVALID)
         {
-            bool inSync = _is_stepper_in_sync(pStepper);
+            bool inSync = _is_stepper_in_sync_with_encoder(pStepper);
             if(!inSync)
             {
                 on_stepper_out_of_sync_interrupt(pStepper->stepperId);
@@ -1738,6 +1745,7 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
             encoder_reset(pStepper->encoderId);
             pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
             pStepper->encoderOffset = 0;
+            pStepper->maxEncoderOffsetError = 0;
         }
 
         _boundary_detector_flips(pStepper); // init static data in function.
