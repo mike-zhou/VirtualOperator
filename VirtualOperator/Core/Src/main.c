@@ -136,7 +136,6 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  encoders_init();
   prepare_uart1();
   init_usb_fs();
   /* USER CODE END Init */
@@ -172,6 +171,8 @@ int main(void)
 
   print_log("Virtual Operator: %s\r\n", APP_VERSION);
 
+  encoders_init();
+  
   if(!init_peer_exchange(get_usb_fs_byte,
 		  wrapper_send_bytes_to_peer,
 		  wrapper_get_timestamp_ms,
@@ -251,6 +252,11 @@ int main(void)
 	  poll_usb_fs();
 	  poll_peer_exchange();
 	  poll_app();
+
+    for(uint8_t encoderId = ENCODER_ID_0; encoderId < ENCODER_ID_COUNT; encoderId++)
+    {
+      encoder_poll(encoderId);
+    }
 
     mainLoopCount++;
   }

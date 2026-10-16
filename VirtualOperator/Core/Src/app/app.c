@@ -878,7 +878,13 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 	 * 	25: 2/2 of counts when the encoder turns a round
 	 * 	26: 1/2 of max allowable difference between actual position and ideal position
 	 * 	27: 2/2 of max allowable difference between actual position and ideal position
+	 *  28: encoder is co-directional with stepper
 	 */
+
+	if(length != 29) {
+		print_log("Error: _on_set_stepper_controls, invalid command length: %d\r\n", length);
+		return;
+	}
 
 	StepperId stepperId = (StepperId)p_cmd[1];
 	bool isRisingEdgeDriven = p_cmd[2] > 0;
@@ -920,6 +926,8 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 	uint16_t encoderOffsetErrorThreshold = p_cmd[27];
 	encoderOffsetErrorThreshold <<= 8;
 	encoderOffsetErrorThreshold += p_cmd[26];
+
+	bool encoderCodirectional = (p_cmd[28] != 0);
 
 	_reply[0] = p_cmd[0];
 
@@ -1002,7 +1010,7 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		return;
 	}
 
-	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d, portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, encoderOffsetErrorThreshold: %d\r\n", 
+	print_log("Info: stepperId: %d, risingEdgeDriven: %d, forwardHigh: %d, enableHigh: %d, portIndexHome: %d, pinIndexHome: %d, portIndexEnd: %d, pinIndexEnd: %d, portIndexEnable: %d, pinIndexEnable: %d, portIndexForward: %d, pinIndexForward: %d, portIndexClock: %d, pinIndexClock: %d, homeToReadySteps: %d, range: %d, stepsPerRound: %d, encoderId: %d, countsPerEncoderRound: %d, encoderOffsetErrorThreshold: %d, encoderCodirectional: %d\r\n", 
 		stepperId, 
 		isRisingEdgeDriven,
 		isForwardHigh,
@@ -1022,7 +1030,8 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		stepsPerRound,
 		encoderId,
 		countsPerEncoderRound,
-		encoderOffsetErrorThreshold);
+		encoderOffsetErrorThreshold,
+		encoderCodirectional);
 	
 	GPIO_TypeDef * pPortHomeBoundary = 	_get_gpio_port_ptr(portIndexHomeBoundary);
 	GPIO_TypeDef * pPortEndBoundary = 	_get_gpio_port_ptr(portIndexEndBoundary);
@@ -1050,7 +1059,8 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 		stepsPerRound,
 		encoderId,
 		countsPerEncoderRound,
-		encoderOffsetErrorThreshold);
+		encoderOffsetErrorThreshold,
+		encoderCodirectional);
 
 	if(result == STEPPER_OK)
 	{

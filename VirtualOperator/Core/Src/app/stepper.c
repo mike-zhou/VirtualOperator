@@ -43,6 +43,14 @@ typedef enum _activeSubState
     DEACCELERATING
 } StepperActiveSubState;
 
+typedef enum _stepperInSyncState
+{
+    UNDER_RUN = 0, 
+    IN_SYNC = 1,
+    OVER_RUN_DETECTED = 2,
+    OVER_RUN_CORRECTING = 3,
+} StepperInSyncState;
+
 typedef struct _Stepper
 {
     /**
@@ -69,6 +77,7 @@ typedef struct _Stepper
     EncoderId encoderId;
     uint16_t encoderCountsPerRotation;
     uint16_t encoderOffsetErrorThreshold;
+    uint8_t encoderCodirectional;
     float encoderStepperRatio;
     bool isStepperControlInitialized;
 
@@ -106,6 +115,8 @@ typedef struct _Stepper
     /**
      * cross boundary
      */
+	bool prevHomeDetectorStatus;
+	bool prevEndDetectorStatus;
     CrossBoundary crossBoundary;
 
     /**
@@ -122,6 +133,7 @@ typedef struct _Stepper
     int32_t encoderHomePosition;
     int32_t encoderOffset;
     uint8_t maxEncoderOffsetError;
+    StepperInSyncState inSyncState;
 
     int32_t stepsToRun;
     int32_t currentStep;
@@ -134,6 +146,7 @@ typedef struct _Stepper
 } StepperData;
 
 static StepperData _steppers[STEPPER_ID_COUNT];
+
 
 /**
  * Set the voltage level at the first half of the clock signal
@@ -165,6 +178,52 @@ static void _set_clock_second_half(StepperData * const pStepper)
     pStepper->pulseState = SECOND_HALF;
 }
 
+/**
+ * Set the voltage level at the second half of the clock signal
+ */
+static void _set_clock_second_half_sync(StepperData * const pStepper)
+{
+    pStepper->pulseState = SECOND_HALF;
+
+    bool flipClock = true;
+
+    if(pStepper->encoderId != ENCODER_ID_INVALID)
+    {
+        switch(pStepper->inSyncState)
+        {
+            case UNDER_RUN: 
+                flipClock = true;
+                break;
+            case IN_SYNC:
+                flipClock = true;
+                if((pStepper->currentStep + 1) == pStepper->stepsToRun) {
+                    flipClock = false;
+                }
+                break;
+            case OVER_RUN_CORRECTING: 
+                flipClock = true;
+                break;
+            case OVER_RUN_DETECTED:
+                flipClock = false;
+                break;
+            default:
+                // shouldn't be here
+                break;
+        }
+    }
+
+    if(flipClock)
+    {
+        GPIO_PinState pinState = GPIO_PIN_RESET;
+
+        if(pStepper->isRisingEdgeDriven == true)
+        {
+            pinState = GPIO_PIN_SET;
+        }
+        HAL_GPIO_WritePin(pStepper->pGpioPortClock, 1 << pStepper->gpioPinIndexClock, pinState);
+    }
+}
+
 static bool _is_stepper_at_home_boundary(StepperData * const pStepper)
 {
     GPIO_PinState state = HAL_GPIO_ReadPin(pStepper->pGpioPortHomeBoundary, 0x1 << pStepper->gpioPinIndexHomeBoundary);
@@ -187,24 +246,21 @@ static bool _is_stepper_at_end_boundary(StepperData * const pStepper)
 
 static bool _boundary_detector_flips(StepperData * const pStepper)
 {
-	static bool prevHomeDetectorStatus = false;
-	static bool prevEndDetectorStatus = false;
-
 	bool stateChanged;
 
 	bool currentHomeDetectorStatus = _is_stepper_at_home_boundary(pStepper);
 	bool currentEndDetectorStatus = _is_stepper_at_end_boundary(pStepper);
 
-	if(prevHomeDetectorStatus != currentHomeDetectorStatus ||
-	   prevEndDetectorStatus != currentEndDetectorStatus) {
+	if(pStepper->prevHomeDetectorStatus != currentHomeDetectorStatus ||
+	   pStepper->prevEndDetectorStatus != currentEndDetectorStatus) {
 		stateChanged = true;
 	}
 	else {
 		stateChanged = false;
 	}
 
-	prevHomeDetectorStatus = currentHomeDetectorStatus;
-	prevEndDetectorStatus = currentEndDetectorStatus;
+	pStepper->prevHomeDetectorStatus = currentHomeDetectorStatus;
+	pStepper->prevEndDetectorStatus = currentEndDetectorStatus;
 
 	return stateChanged;
 }
@@ -260,11 +316,17 @@ static bool _is_stepper_out_of_range(StepperData * const pStepper)
 static bool _is_stepper_in_sync_with_encoder(StepperData * const pStepper)
 {
     encoder_poll(pStepper->encoderId);
+    pStepper->encoderOffset = encoder_get_offset(pStepper->encoderId) - pStepper->encoderHomePosition;
 
-    int32_t encoderOffset = encoder_get_offset(pStepper->encoderId) - pStepper->encoderHomePosition;
     int32_t expectedEncoderPosition = pStepper->offset * pStepper->encoderStepperRatio;
+    int32_t actualEncoderPosition = pStepper->encoderOffset;
+    if(pStepper->encoderCodirectional == false) {
+        // map to codirectional
+        actualEncoderPosition = 0 - actualEncoderPosition;
+    }
 
-    int32_t error = abs(abs(encoderOffset) - abs(expectedEncoderPosition));
+    int32_t diff = actualEncoderPosition - expectedEncoderPosition;
+    int32_t error = abs(diff);
 
     if(error > pStepper->maxEncoderOffsetError)
     {
@@ -276,16 +338,129 @@ static bool _is_stepper_in_sync_with_encoder(StepperData * const pStepper)
     	}
     }
 
-    pStepper->encoderOffset = encoderOffset;
+    // update inSyncState
+    StepperInSyncState newSyncState;
+    if(pStepper->isForward)
+    {
+        if(diff > pStepper->encoderOffsetErrorThreshold) {
+            newSyncState = OVER_RUN_DETECTED;
+        }
+        else if(diff < -pStepper->encoderOffsetErrorThreshold) {
+            newSyncState = UNDER_RUN;
+        }
+        else {
+            newSyncState = IN_SYNC;
+        }
+    }
+    else 
+    {
+        if(diff > pStepper->encoderOffsetErrorThreshold) {
+            newSyncState = UNDER_RUN;
+        }
+        else if(diff < -pStepper->encoderOffsetErrorThreshold) {
+            newSyncState = OVER_RUN_DETECTED;
+        }
+        else {
+            newSyncState = IN_SYNC;
+        }
+    }
 
-    if(error >= pStepper->encoderOffsetErrorThreshold)
+    switch(pStepper->inSyncState)
     {
-        return false;
+        case UNDER_RUN:
+        {
+            switch(newSyncState)
+            {
+                case UNDER_RUN:
+                    // do nothing
+                    break;
+                case IN_SYNC:
+                    pStepper->inSyncState = IN_SYNC;
+                    break;
+                case OVER_RUN_DETECTED:
+                    pStepper->inSyncState = OVER_RUN_DETECTED;
+                    break;
+                default:
+                    print_string("Invalid newSyncState: ");
+                    print_uint8_hex(newSyncState);
+                    print_string("\r\n");
+                    break;
+            }
+            break;
+        }
+        case IN_SYNC:
+        {
+            switch(newSyncState)
+            {
+                case UNDER_RUN:
+                    pStepper->inSyncState = UNDER_RUN;
+                    break;
+                case IN_SYNC:
+                    // do nothing
+                    break;
+                case OVER_RUN_DETECTED:
+                    pStepper->inSyncState = OVER_RUN_DETECTED;
+                    break;
+                default:
+                    print_string("Invalid newSyncState: ");
+                    print_uint8_hex(newSyncState);
+                    print_string("\r\n");
+                    break;
+            }
+            break;
+        }
+        case OVER_RUN_DETECTED:
+        {
+            switch(newSyncState)
+            {
+                case UNDER_RUN:
+                    pStepper->inSyncState = UNDER_RUN;
+                    break;
+                case IN_SYNC:
+                    pStepper->inSyncState = IN_SYNC;
+                    break;
+                case OVER_RUN_DETECTED:
+                    // do nothing
+                    break;
+                default:
+                    print_string("Invalid newSyncState: ");
+                    print_uint8_hex(newSyncState);
+                    print_string("\r\n");
+                    break;
+            }
+            break;
+        }
+        case OVER_RUN_CORRECTING:
+        {
+            switch(newSyncState)
+            {
+                case UNDER_RUN:
+                    pStepper->inSyncState = UNDER_RUN;
+                    break;
+                case IN_SYNC:
+                    pStepper->inSyncState = IN_SYNC;
+                    break;
+                case OVER_RUN_DETECTED:
+                    // don't change state in order that the stepper continues to be clocked
+                    break;
+                default:
+                    print_string("Invalid newSyncState: ");
+                    print_uint8_hex(newSyncState);
+                    print_string("\r\n");
+                    break;
+            }
+            break;
+        }
+        default:
+        {
+            print_string("Invalid stepper inSyncState: ");
+            print_uint8_hex(pStepper->inSyncState);
+            print_string("\r\n");
+            break;
+        }
     }
-    else
-    {
-        return true;
-    }
+
+    return newSyncState == IN_SYNC;
 }
 
 /**
@@ -294,7 +469,7 @@ static bool _is_stepper_in_sync_with_encoder(StepperData * const pStepper)
  * If stepIndex is what the passive expected, the passive needs to drive its
  * clock pin according to pulseState.
  */
-static StepperReturnCode _on_active_stepper_pulse_end(
+static StepperReturnCode _on_stepper_pulse_end_passive(
     const StepperId passiveStepperId, 
     const uint32_t activeStepIndex, 
     const PulseState activePulseState)
@@ -406,7 +581,7 @@ static StepperReturnCode _notify_passive_steppers(StepperData * const pActiveSte
             continue;
         }
 
-        rc = _on_active_stepper_pulse_end(passiveStepperId, pActiveStepper->currentStep, pActiveStepper->pulseState);
+        rc = _on_stepper_pulse_end_passive(passiveStepperId, pActiveStepper->currentStep, pActiveStepper->pulseState);
         if(rc != STEPPER_OK)
         {
             return rc;
@@ -482,6 +657,8 @@ void stepper_init_data_structure()
         pStepper->currentStep = 0;
         pStepper->pulseState = FIRST_HALF;
         pStepper->forcePulseWidth = 0xFFFF;
+	    pStepper->prevHomeDetectorStatus = false;
+	    pStepper->prevEndDetectorStatus = false;
         for(uint8_t passiveIndex=0; passiveIndex<STEPPER_ID_COUNT; passiveIndex++)
         {
             pStepper->passiveStepperIds[passiveIndex] = STEPPER_ID_INVALID;
@@ -510,7 +687,8 @@ StepperReturnCode stepper_set_controls(
     const uint16_t stepsPerRotation,
     const EncoderId encoderId,
     const uint16_t encoderCountsPerRotation,
-    const uint16_t encoderOffsetErrorThreshold)
+    const uint16_t encoderOffsetErrorThreshold,
+    const bool codirectionalEncoder)
 {
     if(id >= STEPPER_ID_COUNT)
     {
@@ -580,6 +758,8 @@ StepperReturnCode stepper_set_controls(
     pStepper->encoderCountsPerRotation = encoderCountsPerRotation;
     pStepper->encoderOffsetErrorThreshold = encoderOffsetErrorThreshold;
     pStepper->encoderStepperRatio = (float)encoderCountsPerRotation / (float)stepsPerRotation;
+    pStepper->inSyncState = IN_SYNC;
+    pStepper->encoderCodirectional = codirectionalEncoder;
     pStepper->isStepperControlInitialized = true;
 
     if(!_is_static_data_initialized(id))
@@ -646,7 +826,7 @@ StepperReturnCode stepper_set_controls(
     return STEPPER_OK;
 }
 
-static void _stepper_set_forward(StepperData * const pStepper, const bool isForward)
+static void _stepper_set_forward_raw(StepperData * const pStepper, const bool isForward)
 {
     GPIO_PinState pinState;
 
@@ -666,6 +846,11 @@ static void _stepper_set_forward(StepperData * const pStepper, const bool isForw
     }
 
     HAL_GPIO_WritePin(pStepper->pGpioPortForward, 1 << pStepper->gpioPinIndexForward, pinState);
+}
+
+static void _stepper_set_forward(StepperData * const pStepper, const bool isForward)
+{
+    _stepper_set_forward_raw(pStepper, isForward);
     pStepper->isForward = isForward;
 }
 
@@ -1277,7 +1462,7 @@ StepperReturnCode stepper_run_active(const StepperId id, const int32_t steps)
     }
 
     pStepper->stepsToRun = steps;
-    pStepper->currentStep = 0;
+    pStepper->currentStep = -1;
     pStepper->currentPulseWidth = pStepper->pRampupPulseWidths[0];
 
     pStepper->state = STEPPER_STATE_RUNNING_ACTIVE;
@@ -1530,20 +1715,13 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         // first clock pulse has finished, check if stepper has arrived at the expected position
         if(pStepper->encoderId != ENCODER_ID_INVALID)
         {
-            bool inSync = _is_stepper_in_sync_with_encoder(pStepper);
-            if(!inSync)
-            {
-                on_stepper_out_of_sync_interrupt(pStepper->stepperId);
-                print_log("Error: stepper %d out of sync, stepper offset: %d, encoder offset: %d\r\n", (int)pStepper->stepperId, pStepper->offset, pStepper->encoderOffset);
-                *pNextPulseWidth = 0;
-                pStepper->state = STEPPER_STATE_OUT_OF_SYNC;
-                return STEPPER_ERROR_OUT_OF_SYNC;
-            }
+            // update inSyncState
+            _is_stepper_in_sync_with_encoder(pStepper);
         }
         
         // start the second clock pulse to make the stepper move further
         const StepperReturnCode rc = _notify_passive_steppers(pStepper);
-        _set_clock_second_half(pStepper);
+        _set_clock_second_half_sync(pStepper);
         if(rc != STEPPER_OK)
         {
             *pNextPulseWidth = 0;
@@ -1564,65 +1742,91 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
         return rc;
     }
 
-    // check if stepper is out of range
-    if(pStepper->isForward)
+    bool updateOffset = true;
+
+    if(pStepper->encoderId != ENCODER_ID_INVALID)
     {
-        pStepper->offset++;
-        if(pStepper->offset > pStepper->range)
+        switch(pStepper->inSyncState)
         {
+            case UNDER_RUN:
+                // keep clocking but pause offseting, so that actual position catches up to the expected position
+                _stepper_set_forward_raw(pStepper, pStepper->isForward);
+                updateOffset = false;
+                break;
+
+            case IN_SYNC:
+                _stepper_set_forward_raw(pStepper, pStepper->isForward);
+                updateOffset = true;
+                break;
+
+            case OVER_RUN_DETECTED:
+                // pause clocking but keep offseting, so that the expected position catches up to the real position
+                _stepper_set_forward_raw(pStepper, pStepper->isForward);
+                updateOffset = true;
+                if((pStepper->currentStep + 1) == pStepper->stepsToRun) {
+                    //  still overrun at the last step, reverse the stepper
+                    _stepper_set_forward_raw(pStepper, !pStepper->isForward);
+                    updateOffset = false;
+                    pStepper->inSyncState = OVER_RUN_CORRECTING;
+
+                }
+                break;
+
+            case OVER_RUN_CORRECTING:
+                // keep clocking but pause offseting, so that the real position moves back to the expected position
+                _stepper_set_forward_raw(pStepper, !pStepper->isForward);
+                updateOffset = false;
+                break;
+
+            default:
+                // shouldn't be here
+                break;
+        }
+    }
+
+    if(updateOffset)
+    {
+        pStepper->currentStep += 1;
+        if(pStepper->currentStep == pStepper->stepsToRun)
+        {
+            // has run the designated steps
+            pStepper->currentStep = -1;
+            pStepper->stepsToRun = 0;
+            pStepper->state = STEPPER_STATE_READY;
             *pNextPulseWidth = 0;
-            return STEPPER_ERROR_OUT_OF_RANGE;
+            return STEPPER_OK;
         }
-    }
-    else
-    {
-        pStepper->offset--;
-        if(pStepper->offset < 0)
+
+        // check if stepper is out of range
+        if(pStepper->isForward)
         {
-        	if(pStepper->crossBoundary.enabled)
-        	{
-        		if(pStepper->offset < pStepper->crossBoundary.negativeRange)
-        		{
-            		*pNextPulseWidth = 0;
-            		return STEPPER_ERROR_OUT_OF_RANGE;
-        		}
-        	}
-        	else
-        	{
-        		*pNextPulseWidth = 0;
-        		return STEPPER_ERROR_OUT_OF_RANGE;
-        	}
+            pStepper->offset++;
+            if(pStepper->offset > pStepper->range)
+            {
+                *pNextPulseWidth = 0;
+                return STEPPER_ERROR_OUT_OF_RANGE;
+            }
         }
-    }
-
-    if(pStepper->currentStep == 0)
-    {
-        // print_string("Stepper ");
-        // print_uint8_hex(pStepper->stepperId);
-        // print_string(" rampUp, stepIndex: ");
-        // print_uint32_hex(pStepper->currentStep);
-        // print_string(", width: ");
-        // print_uint16_hex(pStepper->currentPulseWidth);
-        // print_string("\r\n");
-    }
-
-    pStepper->currentStep += 1;
-    if(pStepper->currentStep == pStepper->stepsToRun)
-    {
-        // print_string("Stepper ");
-        // print_uint8_hex(pStepper->stepperId);
-        // print_string(" stop, stepIndex: ");
-        // print_uint32_hex(pStepper->currentStep);
-        // print_string(", width: ");
-        // print_uint16_hex(pStepper->currentPulseWidth);
-        // print_string("\r\n");
-
-        // has run the designated steps
-        pStepper->currentStep = 0;
-        pStepper->stepsToRun = 0;
-        pStepper->state = STEPPER_STATE_READY;
-        *pNextPulseWidth = 0;
-        return STEPPER_OK;
+        else
+        {
+            pStepper->offset--;
+            if(pStepper->offset < 0)
+            {
+                if(pStepper->crossBoundary.enabled)
+                {
+                    if(pStepper->offset < pStepper->crossBoundary.negativeRange)
+                    {
+                        *pNextPulseWidth = 0;
+                        return STEPPER_ERROR_OUT_OF_RANGE;
+                    }
+                }
+                else
+                {
+                    *pNextPulseWidth = 0;
+                    return STEPPER_ERROR_OUT_OF_RANGE;
+                }
+            }
+        }
     }
 
     // calculate the width of next pulse
@@ -1640,14 +1844,6 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
             // cruising
             if(pStepper->activeSubState != CRUISING)
             {
-                // print_string("Stepper ");
-                // print_uint8_hex(pStepper->stepperId);
-                // print_string(" cruise, stepIndex: ");
-                // print_uint32_hex(pStepper->currentStep);
-                // print_string(", width: ");
-                // print_uint16_hex(width);
-                // print_string("\r\n");
-
                 pStepper->activeSubState = CRUISING;
             }
         }
@@ -1663,14 +1859,6 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
 
             if(pStepper->activeSubState != DEACCELERATING)
             {
-                // print_string("Stepper ");
-                // print_uint8_hex(pStepper->stepperId);
-                // print_string(" rampDown, stepIndex: ");
-                // print_uint32_hex(pStepper->currentStep);
-                // print_string(", width: ");
-                // print_uint16_hex(width);
-                // print_string("\r\n");
-
                 pStepper->activeSubState = DEACCELERATING;
             }
         }
@@ -1746,6 +1934,7 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
             pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
             pStepper->encoderOffset = 0;
             pStepper->maxEncoderOffsetError = 0;
+            pStepper->inSyncState = IN_SYNC;
         }
 
         _boundary_detector_flips(pStepper); // init static data in function.

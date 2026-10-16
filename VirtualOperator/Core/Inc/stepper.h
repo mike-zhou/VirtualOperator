@@ -228,7 +228,8 @@ StepperReturnCode stepper_set_controls(
     const uint16_t stepsPerRotation,
     const EncoderId encoderId,
     const uint16_t encoderCountsPerRotation,
-    const uint16_t encoderOffsetErrorThreshold
+    const uint16_t encoderOffsetErrorThreshold,
+    const bool codirectionalEncoder
 );
 
 StepperReturnCode stepper_set_forward(const StepperId id, const bool isForward);
@@ -269,6 +270,8 @@ StepperReturnCode stepper_get_startup_pulse_width(const StepperId id, uint16_t *
 /**
  * This function is called when the clock pulse finishes, pNextPulseWidth returns the width of next pulse.
  * A stepper clock has 2 pulses, named FIRST_HALF and SECOND_HALF; the stepper is clocked at the end of FIRST_HALF.
+ * The stepper is clocked at the end of FIRST_HALF, whether it arrives at the expected position is checked at the 
+ * end of next FIRST_HALF, so N steps need (N + 1) clocks.
  * If this function doesn't return STEPPER_OK or a pulse width is zero, then this stepper shouldn't be driven any more.
  */
 StepperReturnCode on_interupt_stepper_pulse_end(const StepperId id, uint16_t * const pNextPulseWidth);
