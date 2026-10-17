@@ -179,7 +179,7 @@ static void _set_clock_second_half(StepperData * const pStepper)
 }
 
 /**
- * Set the voltage level at the second half of the clock signal
+ * Set the voltage level at the second half of the clock signal on contidtions
  */
 static void _set_clock_second_half_sync(StepperData * const pStepper)
 {
@@ -1744,44 +1744,41 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
 
     bool updateOffset = true;
 
-    if(pStepper->encoderId != ENCODER_ID_INVALID)
+    switch(pStepper->inSyncState)
     {
-        switch(pStepper->inSyncState)
-        {
-            case UNDER_RUN:
-                // keep clocking but pause offseting, so that actual position catches up to the expected position
-                _stepper_set_forward_raw(pStepper, pStepper->isForward);
-                updateOffset = false;
-                break;
+        case UNDER_RUN:
+            // keep clocking but pause offseting, so that actual position catches up to the expected position
+            _stepper_set_forward_raw(pStepper, pStepper->isForward);
+            updateOffset = false;
+            break;
 
-            case IN_SYNC:
-                _stepper_set_forward_raw(pStepper, pStepper->isForward);
-                updateOffset = true;
-                break;
+        case IN_SYNC:
+            _stepper_set_forward_raw(pStepper, pStepper->isForward);
+            updateOffset = true;
+            break;
 
-            case OVER_RUN_DETECTED:
-                // pause clocking but keep offseting, so that the expected position catches up to the real position
-                _stepper_set_forward_raw(pStepper, pStepper->isForward);
-                updateOffset = true;
-                if((pStepper->currentStep + 1) == pStepper->stepsToRun) {
-                    //  still overrun at the last step, reverse the stepper
-                    _stepper_set_forward_raw(pStepper, !pStepper->isForward);
-                    updateOffset = false;
-                    pStepper->inSyncState = OVER_RUN_CORRECTING;
-
-                }
-                break;
-
-            case OVER_RUN_CORRECTING:
-                // keep clocking but pause offseting, so that the real position moves back to the expected position
+        case OVER_RUN_DETECTED:
+            // pause clocking but keep offseting, so that the expected position catches up to the real position
+            _stepper_set_forward_raw(pStepper, pStepper->isForward);
+            updateOffset = true;
+            if((pStepper->currentStep + 1) == pStepper->stepsToRun) {
+                //  still overrun at the last step, reverse the stepper
                 _stepper_set_forward_raw(pStepper, !pStepper->isForward);
                 updateOffset = false;
-                break;
+                pStepper->inSyncState = OVER_RUN_CORRECTING;
 
-            default:
-                // shouldn't be here
-                break;
-        }
+            }
+            break;
+
+        case OVER_RUN_CORRECTING:
+            // keep clocking but pause offseting, so that the real position moves back to the expected position
+            _stepper_set_forward_raw(pStepper, !pStepper->isForward);
+            updateOffset = false;
+            break;
+
+        default:
+            // shouldn't be here
+            break;
     }
 
     if(updateOffset)
@@ -1870,6 +1867,20 @@ static StepperReturnCode _on_stepper_pulse_end_active(StepperData * const pStepp
     return STEPPER_OK;
 }
 
+static void _reset_stepper_data_from_home_to_ready(StepperData * const pStepper)
+{
+    pStepper->offset = 0;
+    pStepper->currentStep = -1;
+
+    if(pStepper->encoderId != ENCODER_ID_INVALID) {
+        encoder_poll(pStepper->encoderId);
+        pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
+        pStepper->encoderOffset = 0;
+        pStepper->maxEncoderOffsetError = 0;
+        pStepper->inSyncState = IN_SYNC;
+    }
+}
+
 static StepperReturnCode _on_stepper_pulse_end_to_home(StepperData * const pStepper, uint16_t * const pNextPulseWidth)
 {
     if(pStepper->pulseState == FIRST_HALF)
@@ -1893,6 +1904,8 @@ static StepperReturnCode _on_stepper_pulse_end_to_home(StepperData * const pStep
     // stepper arrives at home boundary
     _stepper_set_forward(pStepper, true);
     pStepper->state = STEPPER_STATE_HOME_BOUNDARY_TO_READY;
+    pStepper->stepsToRun = pStepper->homeBoundaryToReadySteps;
+    _reset_stepper_data_from_home_to_ready(pStepper);
 
     return STEPPER_OK;
 }
@@ -1901,7 +1914,10 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
 {
     if(pStepper->pulseState == FIRST_HALF)
     {
-        _set_clock_second_half(pStepper);
+        if(pStepper->encoderId != ENCODER_ID_INVALID) {
+            _is_stepper_in_sync_with_encoder(pStepper);
+        }
+        _set_clock_second_half_sync(pStepper);
         *pNextPulseWidth = pStepper->currentPulseWidth;
 
         return STEPPER_OK;
@@ -1911,33 +1927,57 @@ static StepperReturnCode _on_stepper_pulse_end_home_to_ready(StepperData * const
     _set_clock_first_half(pStepper);
     *pNextPulseWidth = pStepper->currentPulseWidth;
 
+    bool updateOffset = true;
+
     bool atHomeBoundary = _is_stepper_at_home_boundary(pStepper);
     if(atHomeBoundary)
     {
-        pStepper->currentStep = 0;
+        updateOffset = false;
+        _reset_stepper_data_from_home_to_ready(pStepper);
     }
     else
     {
-        pStepper->currentStep++;
+        switch(pStepper->inSyncState)
+        {
+            case UNDER_RUN:
+                updateOffset = false;
+                break;
+
+            case IN_SYNC:
+                updateOffset = true;
+                break;
+
+            case OVER_RUN_DETECTED:
+                updateOffset = true;
+                if((pStepper->currentStep + 1) == pStepper->stepsToRun) {
+                    updateOffset = false;
+                    pStepper->inSyncState = OVER_RUN_CORRECTING;
+                }
+                break;
+
+            case OVER_RUN_CORRECTING:
+                updateOffset = false;
+                break;
+
+            default:
+                // shouldn't be here
+                break;
+        }
     }
 
-    if(pStepper->currentStep == pStepper->homeBoundaryToReadySteps)
+    if(updateOffset)
     {
-        *pNextPulseWidth = 0;
-        
-        pStepper->currentStep = 0;
-        pStepper->offset = 0;
-        pStepper->state = STEPPER_STATE_READY;
-        if(pStepper->encoderId < ENCODER_ID_COUNT)
+        pStepper->currentStep++;
+        if(pStepper->currentStep == pStepper->stepsToRun)
         {
-            encoder_reset(pStepper->encoderId);
-            pStepper->encoderHomePosition = encoder_get_offset(pStepper->encoderId);
-            pStepper->encoderOffset = 0;
-            pStepper->maxEncoderOffsetError = 0;
-            pStepper->inSyncState = IN_SYNC;
-        }
+            *pNextPulseWidth = 0;
+            
+            pStepper->state = STEPPER_STATE_READY;
+            _reset_stepper_data_from_home_to_ready(pStepper);
+            pStepper->stepsToRun = 0;
 
-        _boundary_detector_flips(pStepper); // init static data in function.
+            _boundary_detector_flips(pStepper); // init static data in function.
+        }
     }
 
     return STEPPER_OK;

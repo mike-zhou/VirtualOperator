@@ -253,11 +253,6 @@ int main(void)
 	  poll_peer_exchange();
 	  poll_app();
 
-    for(uint8_t encoderId = ENCODER_ID_0; encoderId < ENCODER_ID_COUNT; encoderId++)
-    {
-      encoder_poll(encoderId);
-    }
-
     mainLoopCount++;
   }
   /* USER CODE END 3 */
