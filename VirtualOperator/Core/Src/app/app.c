@@ -882,6 +882,9 @@ static void _on_set_stepper_controls(const uint8_t * p_cmd, const uint16_t lengt
 	 */
 
 	if(length != 29) {
+		_reply[0] = p_cmd[0];
+		_reply[1] = 14;
+		send_peer_message(_reply, 2);
 		print_log("Error: _on_set_stepper_controls, invalid command length: %d\r\n", length);
 		return;
 	}
